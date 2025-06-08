@@ -113,12 +113,12 @@ cat > html/index.html << 'EOF'
 .container{max-width:1200px;margin:0 auto;background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
 h1{color:#333;text-align:center}.status{background:#e8f5e8;padding:15px;border-radius:5px;margin:20px 0}
 .feature{background:#f8f9fa;padding:15px;margin:10px 0;border-left:4px solid #007bff}</style></head>
-<body><div class="container"><h1>🚀 DevOps Final Project - Docker Deployment</h1>
-<div class="status"><h3>✅ Deployment Status: Active</h3><p>Multi-tier application running successfully!</p></div>
-<div class="feature"><h3>📦 Infrastructure</h3><ul><li>VPC with Public/Private/Database Subnets</li>
+<body><div class="container"><h1>DevOps Final Project - Docker Deployment</h1>
+<div class="status"><h3>Deployment Status: Active</h3><p>Multi-tier application running successfully!</p></div>
+<div class="feature"><h3>Infrastructure</h3><ul><li>VPC with Public/Private/Database Subnets</li>
 <li>Application Load Balancer</li><li>Auto Scaling Group (2 EC2 instances)</li><li>MySQL & PostgreSQL Databases</li>
 <li>CloudWatch Monitoring</li><li>Docker Containerized Apps</li></ul></div>
-<div class="feature"><h3>🐳 Docker Services</h3><ul><li>Nginx Frontend (Port 80)</li>
+<div class="feature"><h3>Docker Services</h3><ul><li>Nginx Frontend (Port 80)</li>
 <li>Node.js Backend API (Port 3001)</li><li>Multi-stage Dockerfiles</li><li>Container Orchestration</li></ul></div></div>
 <script>fetch('/api/health').then(r=>r.text()).then(d=>console.log('Backend:',d)).catch(e=>console.log('Backend loading:',e));</script></body></html>
 EOF
