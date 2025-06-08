@@ -1,0 +1,108 @@
+/* KPI Card Styles */
+
+.kpi-card-container {
+  height: 100%;
+}
+
+.kpi-card {
+  height: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+.kpi-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.kpi-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.kpi-header {
+  margin-bottom: 12px;
+}
+
+.kpi-icon {
+  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(24, 144, 255, 0.1);
+}
+
+.kpi-title {
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-value {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.kpi-trend {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.kpi-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.kpi-indicator-fill {
+  height: 100%;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .kpi-card .ant-card-body {
+    padding: 16px;
+  }
+  
+  .kpi-value .ant-statistic-content-value {
+    font-size: 24px !important;
+  }
+  
+  .kpi-icon {
+    font-size: 18px;
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* Loading state */
+.kpi-card.ant-card-loading .kpi-content {
+  opacity: 0.7;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .kpi-card {
+    background: linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 100%);
+    border: 1px solid #303030;
+  }
+  
+  .kpi-trend {
+    border-top-color: #303030;
+  }
+}

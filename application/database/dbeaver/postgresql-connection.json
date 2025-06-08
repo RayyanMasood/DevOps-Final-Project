@@ -1,0 +1,135 @@
+{
+  "connections": [
+    {
+      "id": "devops-postgresql-ssh",
+      "name": "DevOps PostgreSQL (SSH Tunnel)",
+      "description": "PostgreSQL analytics database connection via SSH tunnel through bastion host",
+      "driver": "postgresql",
+      "url": "jdbc:postgresql://localhost:5433/devops_analytics",
+      "save-password": false,
+      "read-only": false,
+      "folder": "DevOps Project",
+      "configuration": {
+        "host": "localhost",
+        "port": "5433",
+        "database": "devops_analytics",
+        "url": "jdbc:postgresql://localhost:5433/devops_analytics",
+        "configurationType": "MANUAL",
+        "type": "dev",
+        "closeIdleConnection": true,
+        "properties": {
+          "loginTimeout": "20",
+          "connectTimeout": "20",
+          "socketTimeout": "0",
+          "cancelSignalTimeout": "10",
+          "tcpKeepAlive": "false",
+          "ssl": "false",
+          "sslmode": "prefer",
+          "applicationName": "DBeaver",
+          "allowEncodingChanges": "true",
+          "targetServerType": "any",
+          "hostRecheckSeconds": "10",
+          "loadBalanceHosts": "false",
+          "prepareThreshold": "5",
+          "preparedStatementCacheQueries": "256",
+          "preparedStatementCacheSizeMiB": "5",
+          "defaultRowFetchSize": "0",
+          "logUnclosedConnections": "false",
+          "assumeMinServerVersion": "9.0"
+        },
+        "provider-properties": {
+          "@dbeaver-show-non-default-db@": "false",
+          "@dbeaver-default-schema@": "public",
+          "@dbeaver-show-template-db@": "false",
+          "@dbeaver-show-unavailable-db@": "false",
+          "@dbeaver-read-all-data-types-db@": "false",
+          "@dbeaver-use-prepared-statements@": "false",
+          "@dbeaver-postgresql-show-non-default-db@": "false",
+          "@dbeaver-postgresql-show-template-db@": "false"
+        },
+        "auth-model": "native",
+        "handlers": {
+          "ssh_tunnel": {
+            "type": "ssh_tunnel",
+            "enabled": true,
+            "properties": {
+              "host": "REPLACE_WITH_BASTION_HOST",
+              "port": "22",
+              "authType": "PUBLIC_KEY",
+              "userName": "ec2-user",
+              "keyPath": "REPLACE_WITH_SSH_KEY_PATH",
+              "savePassword": false,
+              "connectTimeout": "10000",
+              "aliveInterval": "0",
+              "aliveCount": "3",
+              "tunnelTimeout": "20000",
+              "localHost": "localhost",
+              "localPort": "5433",
+              "remoteHost": "REPLACE_WITH_POSTGRESQL_RDS_ENDPOINT",
+              "remotePort": "5432",
+              "implementation": "jsch"
+            }
+          }
+        },
+        "network-handlers": [
+          {
+            "type": "ssh_tunnel",
+            "id": "ssh_tunnel",
+            "enabled": true,
+            "user": "",
+            "password": "",
+            "save-password": false,
+            "properties": {
+              "host": "REPLACE_WITH_BASTION_HOST",
+              "port": "22",
+              "authType": "PUBLIC_KEY",
+              "userName": "ec2-user",
+              "keyPath": "REPLACE_WITH_SSH_KEY_PATH",
+              "savePassword": false,
+              "connectTimeout": "10000",
+              "aliveInterval": "60",
+              "aliveCount": "3",
+              "tunnelTimeout": "20000",
+              "localHost": "localhost",
+              "localPort": "5433",
+              "remoteHost": "REPLACE_WITH_POSTGRESQL_RDS_ENDPOINT",
+              "remotePort": "5432"
+            }
+          }
+        ]
+      },
+      "custom-properties": {
+        "dbeaver.ssh.compression": "false",
+        "dbeaver.ssh.keyfile": "REPLACE_WITH_SSH_KEY_PATH",
+        "dbeaver.connection.type": "dev"
+      },
+      "features": [
+        "supportsTransactions",
+        "supportsReferences",
+        "supportsIndexes",
+        "supportsStoredCode",
+        "supportsViews",
+        "supportsTriggers",
+        "supportsConstraints",
+        "supportsPartitions",
+        "supportsSequences",
+        "supportsInheritance"
+      ]
+    }
+  ],
+  "virtual-models": [],
+  "connection-types": [
+    {
+      "id": "dev",
+      "name": "Development",
+      "color": "255,255,255",
+      "description": "Development database",
+      "auto-commit": true,
+      "confirm-execute": false,
+      "confirm-data-change": false,
+      "auto-close-transactions": false,
+      "smart-commit": false,
+      "smart-commit-recover": false
+    }
+  ]
+}

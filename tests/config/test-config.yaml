@@ -1,0 +1,356 @@
+# DevOps Dashboard Testing Configuration
+# Comprehensive configuration for all testing components
+
+# Environment Configuration
+environments:
+  dev:
+    name: "Development"
+    description: "Development environment for testing new features"
+    database:
+      mysql:
+        host: "${MYSQL_HOST:-localhost}"
+        port: 3306
+        user: "${MYSQL_USER:-devops_user}"
+        password: "${MYSQL_PASSWORD:-secure_password}"
+        database: "${MYSQL_DATABASE:-devops_dashboard}"
+      postgresql:
+        host: "${POSTGRES_HOST:-localhost}"
+        port: 5432
+        user: "${POSTGRES_USER:-devops_user}"
+        password: "${POSTGRES_PASSWORD:-secure_password}"
+        database: "${POSTGRES_DATABASE:-devops_analytics}"
+    urls:
+      app_url: "${APP_URL:-http://localhost:3000}"
+      api_url: "${API_URL:-http://localhost:3001}"
+      bi_url: "${BI_URL:-http://localhost:3002}"
+    thresholds:
+      response_time_ms: 1000
+      performance_rps: 50
+      success_rate_percent: 95
+      
+  staging:
+    name: "Staging"
+    description: "Pre-production environment for integration testing"
+    database:
+      mysql:
+        host: "${MYSQL_HOST:-staging-mysql.internal}"
+        port: 3306
+        user: "${MYSQL_USER:-devops_user}"
+        password: "${MYSQL_PASSWORD:-staging_password}"
+        database: "${MYSQL_DATABASE:-devops_dashboard}"
+      postgresql:
+        host: "${POSTGRES_HOST:-staging-postgres.internal}"
+        port: 5432
+        user: "${POSTGRES_USER:-devops_user}"
+        password: "${POSTGRES_PASSWORD:-staging_password}"
+        database: "${POSTGRES_DATABASE:-devops_analytics}"
+    urls:
+      app_url: "${APP_URL:-https://staging-app.yourdomain.com}"
+      api_url: "${API_URL:-https://staging-api.yourdomain.com}"
+      bi_url: "${BI_URL:-https://staging-bi.yourdomain.com}"
+    thresholds:
+      response_time_ms: 800
+      performance_rps: 75
+      success_rate_percent: 97
+      
+  prod:
+    name: "Production"
+    description: "Production environment for live testing"
+    database:
+      mysql:
+        host: "${MYSQL_HOST:-prod-mysql.internal}"
+        port: 3306
+        user: "${MYSQL_USER:-devops_user}"
+        password: "${MYSQL_PASSWORD:-prod_password}"
+        database: "${MYSQL_DATABASE:-devops_dashboard}"
+      postgresql:
+        host: "${POSTGRES_HOST:-prod-postgres.internal}"
+        port: 5432
+        user: "${POSTGRES_USER:-devops_user}"
+        password: "${POSTGRES_PASSWORD:-prod_password}"
+        database: "${POSTGRES_DATABASE:-devops_analytics}"
+    urls:
+      app_url: "${APP_URL:-https://app.yourdomain.com}"
+      api_url: "${API_URL:-https://api.yourdomain.com}"
+      bi_url: "${BI_URL:-https://bi.yourdomain.com}"
+    thresholds:
+      response_time_ms: 500
+      performance_rps: 100
+      success_rate_percent: 99
+
+# Test Suite Configuration
+test_suites:
+  infrastructure:
+    enabled: true
+    timeout_minutes: 10
+    categories:
+      - vpc_validation
+      - subnet_configuration
+      - security_groups
+      - load_balancer
+      - auto_scaling
+      - rds_instances
+    required_resources:
+      - VPC
+      - ALB
+      - ASG
+      - RDS
+
+  database:
+    enabled: true
+    timeout_minutes: 15
+    tests:
+      connectivity:
+        mysql_timeout: 10
+        postgres_timeout: 10
+      integrity:
+        sample_size: 100
+        cross_db_validation: true
+      performance:
+        query_count: 5
+        threshold_ms: 1000
+        concurrent_connections: 5
+
+  application:
+    enabled: true
+    timeout_minutes: 10
+    endpoints:
+      - path: "/health"
+        method: "GET"
+        expected_status: 200
+      - path: "/api/health"
+        method: "GET"
+        expected_status: 200
+      - path: "/api/users"
+        method: "GET"
+        expected_status: 200
+        params:
+          limit: 10
+      - path: "/api/products"
+        method: "GET"
+        expected_status: 200
+        params:
+          limit: 10
+      - path: "/api/orders"
+        method: "GET"
+        expected_status: 200
+        params:
+          limit: 5
+
+  bi:
+    enabled: true
+    timeout_minutes: 15
+    metabase:
+      username: "${METABASE_USERNAME:-admin@devops.local}"
+      password: "${METABASE_PASSWORD:-MetabaseAdmin123!}"
+      timeout_seconds: 30
+      tests:
+        - authentication
+        - database_connections
+        - dashboards
+        - queries
+        - permissions
+
+  security:
+    enabled: true
+    timeout_minutes: 20
+    severity_threshold: "medium"
+    categories:
+      - vpc_security
+      - security_groups
+      - rds_security
+      - s3_security
+      - ssl_configuration
+      - iam_security
+      - network_security
+      - compliance
+
+  performance:
+    enabled: true
+    timeout_minutes: 30
+    load_testing:
+      concurrent_users: 10
+      duration_seconds: 60
+      ramp_up_seconds: 10
+      scenarios:
+        - path: "/health"
+          weight: 20
+        - path: "/api/users"
+          weight: 30
+          params:
+            limit: 10
+        - path: "/api/products"
+          weight: 30
+          params:
+            limit: 10
+        - path: "/api/orders"
+          weight: 20
+          params:
+            limit: 5
+
+  integration:
+    enabled: true
+    timeout_minutes: 25
+    test_flows:
+      - name: "user_journey"
+        description: "Complete user journey through the application"
+        steps:
+          - get_users
+          - get_products
+          - get_orders
+      - name: "data_flow"
+        description: "Data consistency between databases and BI"
+        steps:
+          - verify_mysql_data
+          - verify_postgres_data
+          - verify_bi_data
+
+  monitoring:
+    enabled: true
+    timeout_minutes: 15
+    cloudwatch:
+      check_metrics: true
+      check_alarms: true
+      check_dashboards: true
+    route53:
+      check_health_checks: true
+    logs:
+      check_log_groups: true
+      check_recent_activity: true
+    notifications:
+      check_sns_topics: true
+
+# Reporting Configuration
+reporting:
+  formats:
+    - html
+    - json
+    - csv
+  output_directory: "./results"
+  reports_directory: "./reports"
+  retention_days: 30
+  
+  html_reports:
+    include_charts: true
+    include_details: true
+    theme: "modern"
+  
+  notifications:
+    slack:
+      enabled: false
+      webhook_url: "${SLACK_WEBHOOK_URL:-}"
+      channel: "#devops-alerts"
+    
+    email:
+      enabled: false
+      smtp_server: "${SMTP_SERVER:-}"
+      smtp_port: 587
+      username: "${SMTP_USERNAME:-}"
+      password: "${SMTP_PASSWORD:-}"
+      from_address: "devops@yourdomain.com"
+      to_addresses:
+        - "team@yourdomain.com"
+
+# CI/CD Configuration
+ci_cd:
+  parallel_execution: true
+  continue_on_failure: false
+  artifact_retention_days: 30
+  
+  stages:
+    pre_deployment:
+      enabled: true
+      terraform_validate: true
+      docker_compose_validate: true
+    
+    testing:
+      infrastructure: true
+      security: true
+      database: true
+      application: true
+      performance: true
+      integration: true
+      monitoring: true
+    
+    post_deployment:
+      enabled: true
+      smoke_tests: true
+      health_checks: true
+
+# AWS Configuration
+aws:
+  region: "${AWS_REGION:-us-east-1}"
+  profile: "${AWS_PROFILE:-default}"
+  
+  cloudwatch:
+    namespace: "DevOps/Dashboard"
+    retention_days: 30
+  
+  s3:
+    reports_bucket: "${REPORTS_BUCKET:-}"
+    artifacts_prefix: "test-artifacts"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  file: "/tmp/devops-dashboard-tests.log"
+  rotate: true
+  max_size_mb: 100
+  backup_count: 5
+
+# Timeout Configuration
+timeouts:
+  global_test_timeout_minutes: 60
+  http_request_timeout_seconds: 30
+  database_connection_timeout_seconds: 10
+  ssh_connection_timeout_seconds: 15
+
+# Retry Configuration
+retries:
+  max_attempts: 3
+  delay_seconds: 5
+  exponential_backoff: true
+
+# Feature Flags
+features:
+  enable_experimental_tests: false
+  enable_load_testing: true
+  enable_security_scanning: true
+  enable_performance_profiling: true
+  enable_chaos_testing: false
+
+# Test Data Configuration
+test_data:
+  generate_sample_data: true
+  sample_users: 100
+  sample_products: 50
+  sample_orders: 200
+  
+  mysql_seed_file: "../application/database/mysql/02-seed.sql"
+  postgres_seed_file: "../application/database/postgresql/02-seed.sql"
+
+# Validation Rules
+validation:
+  infrastructure:
+    min_ec2_instances: 1
+    max_ec2_instances: 10
+    required_rds_instances: 2
+    required_subnets: 4
+  
+  performance:
+    max_response_time_ms: 1000
+    min_throughput_rps: 50
+    max_error_rate_percent: 5
+  
+  security:
+    min_security_score: 80
+    max_critical_findings: 0
+    max_high_findings: 2
+
+# Documentation Links
+documentation:
+  testing_guide: "./docs/testing-guide.md"
+  troubleshooting: "./docs/troubleshooting.md"
+  ci_cd_setup: "./docs/ci-cd-setup.md"
+  monitoring_setup: "./docs/monitoring-setup.md"

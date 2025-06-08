@@ -1,0 +1,228 @@
+version: '3.8'
+
+services:
+  metabase:
+    image: metabase/metabase:v0.47.7
+    container_name: devops-metabase
+    hostname: metabase
+    volumes:
+      - metabase-data:/metabase-data
+      - ./config:/config
+      - ./plugins:/plugins
+      - ./logs:/logs
+      - /etc/ssl/certs:/etc/ssl/certs:ro
+    environment:
+      # Core Configuration
+      - MB_DB_TYPE=postgres
+      - MB_DB_DBNAME=metabase
+      - MB_DB_PORT=5432
+      - MB_DB_USER=metabase_user
+      - MB_DB_PASS=${METABASE_DB_PASSWORD}
+      - MB_DB_HOST=${METABASE_DB_HOST}
+      
+      # Application Configuration
+      - MB_SITE_NAME=DevOps Analytics Dashboard
+      - MB_SITE_URL=${METABASE_SITE_URL:-http://localhost:3000}
+      - MB_ADMIN_EMAIL=${METABASE_ADMIN_EMAIL}
+      - MB_ENCRYPTION_SECRET_KEY=${METABASE_ENCRYPTION_KEY}
+      
+      # Performance & Security
+      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC -XX:G1HeapRegionSize=32m
+      - MB_JETTY_HOST=0.0.0.0
+      - MB_JETTY_PORT=3000
+      - MB_JETTY_MAX_THREADS=50
+      - MB_JETTY_MIN_THREADS=8
+      - MB_JETTY_MAX_QUEUED=50
+      - MB_JETTY_MAX_IDLE_TIME=120000
+      
+      # Email Configuration (Optional)
+      - MB_EMAIL_SMTP_HOST=${SMTP_HOST:-}
+      - MB_EMAIL_SMTP_PORT=${SMTP_PORT:-587}
+      - MB_EMAIL_SMTP_USERNAME=${SMTP_USERNAME:-}
+      - MB_EMAIL_SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - MB_EMAIL_SMTP_SECURITY=${SMTP_SECURITY:-tls}
+      - MB_EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS:-}
+      
+      # Analytics & Tracking
+      - MB_SEND_EMAIL_ON_FIRST_LOGIN_FROM_NEW_DEVICE=false
+      - MB_ANON_TRACKING_ENABLED=false
+      - MB_CHECK_FOR_UPDATES=false
+      
+      # Security Settings
+      - MB_SESSION_TIMEOUT=720  # 12 hours
+      - MB_PASSWORD_COMPLEXITY=strong
+      - MB_PASSWORD_LENGTH=12
+      - MB_ENABLE_PUBLIC_SHARING=false
+      - MB_ENABLE_EMBEDDING=true
+      - MB_EMBEDDING_SECRET_KEY=${METABASE_EMBEDDING_KEY}
+      
+      # Database Connection Pool
+      - MB_DB_CONNECTION_TIMEOUT_MS=10000
+      - MB_DB_MAX_CONNECTION_POOL_SIZE=15
+      - MB_APPLICATION_DB_MAX_CONNECTION_POOL_SIZE=15
+      
+      # Caching
+      - MB_QUERY_CACHING_ENABLED=true
+      - MB_QUERY_CACHING_TTL_RATIO=0.1
+      - MB_QUERY_CACHING_MAX_KB=1000
+      
+      # Logging
+      - MB_LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MB_DB_LOG_LEVEL=${DB_LOG_LEVEL:-WARN}
+      
+    ports:
+      - "${METABASE_PORT:-3000}:3000"
+    networks:
+      - metabase-network
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - metabase-postgres
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.metabase.rule=Host(`${METABASE_DOMAIN:-metabase.localhost}`)"
+      - "traefik.http.routers.metabase.tls=true"
+      - "traefik.http.routers.metabase.tls.certresolver=letsencrypt"
+      - "traefik.http.services.metabase.loadbalancer.server.port=3000"
+
+  metabase-postgres:
+    image: postgres:15-alpine
+    container_name: metabase-postgres
+    hostname: metabase-postgres
+    environment:
+      - POSTGRES_DB=metabase
+      - POSTGRES_USER=metabase_user
+      - POSTGRES_PASSWORD=${METABASE_DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - metabase-postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - metabase-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metabase_user -d metabase"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      postgres 
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+
+  # Nginx Reverse Proxy with SSL Termination
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: metabase-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - metabase-network
+    restart: unless-stopped
+    depends_on:
+      - metabase
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for Caching (Optional but recommended)
+  redis:
+    image: redis:7-alpine
+    container_name: metabase-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - metabase-redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - metabase-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backup Service
+  backup:
+    image: postgres:15-alpine
+    container_name: metabase-backup
+    volumes:
+      - metabase-postgres-data:/data:ro
+      - ./backups:/backups
+      - ./scripts:/scripts:ro
+    environment:
+      - POSTGRES_HOST=metabase-postgres
+      - POSTGRES_DB=metabase
+      - POSTGRES_USER=metabase_user
+      - POSTGRES_PASSWORD=${METABASE_DB_PASSWORD}
+      - BACKUP_RETENTION_DAYS=30
+    networks:
+      - metabase-network
+    restart: "no"
+    profiles:
+      - backup
+    command: ["/scripts/backup-metabase.sh"]
+
+  # Monitoring with Prometheus Node Exporter
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: metabase-node-exporter
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - '/:/host:ro,rslave'
+    ports:
+      - "9100:9100"
+    networks:
+      - metabase-network
+    restart: unless-stopped
+    pid: host
+
+volumes:
+  metabase-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/metabase/data
+  metabase-postgres-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/metabase/postgres
+  metabase-redis-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/metabase/redis
+
+networks:
+  metabase-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  app-network:
+    external: true
+    name: devops_app_network

@@ -1,0 +1,206 @@
+# Terraform Variables Example File
+# Copy this file to terraform.tfvars and modify the values according to your requirements
+
+# ========================================
+# Global Configuration
+# ========================================
+
+# AWS region where resources will be created
+aws_region = "us-east-1"
+
+# Project name - used for resource naming and tagging (lowercase letters, numbers, and hyphens only)
+project_name = "devops-final-project"
+
+# Environment name - must be one of: dev, staging, prod
+environment = "dev"
+
+# Owner of the resources for tagging purposes
+owner = "DevOps Team"
+
+# Cost center for billing and resource allocation
+cost_center = "Engineering"
+
+# ========================================
+# Networking Configuration
+# ========================================
+
+# CIDR block for the VPC
+vpc_cidr = "10.0.0.0/16"
+
+# Enable DNS hostnames and support in the VPC
+enable_dns_hostnames = true
+enable_dns_support   = true
+
+# Enable NAT Gateway for private subnets (set to false to save costs in dev environment)
+enable_nat_gateway = true
+
+# ========================================
+# Security Configuration
+# ========================================
+
+# List of CIDR blocks allowed to access the infrastructure via ALB
+# Default allows all traffic - restrict this in production
+allowed_cidr_blocks = ["0.0.0.0/0"]
+
+# List of office IP addresses for SSH access to bastion host
+# Add your office/home public IP addresses here
+office_ip_addresses = [
+  # "203.0.113.1/32",  # Example office IP
+  # "198.51.100.1/32"  # Example home IP
+]
+
+# AWS key pair name for EC2 instance access
+# Create this key pair in the AWS console first
+key_name = "your-key-pair-name"
+
+# ========================================
+# Compute Configuration (EC2 & Auto Scaling)
+# ========================================
+
+# EC2 instance type for application servers
+instance_type = "t3.medium"
+
+# Auto Scaling Group configuration
+asg_min_size         = 2
+asg_max_size         = 6
+asg_desired_capacity = 3
+
+# Health check configuration
+health_check_grace_period = 300
+health_check_type         = "ELB"
+
+# Auto scaling target values
+target_cpu_utilization = 70
+target_request_count    = 1000
+
+# ========================================
+# Database Configuration (RDS)
+# ========================================
+
+# MySQL Configuration
+mysql_instance_class     = "db.t3.micro"
+mysql_allocated_storage  = 20
+mysql_engine_version     = "8.0"
+mysql_database_name      = "appdb"
+mysql_username          = "admin"
+# mysql_password is sensitive - set via environment variable or prompt
+# mysql_password = "your-secure-password-here"
+
+# PostgreSQL Configuration
+postgres_instance_class     = "db.t3.micro"
+postgres_allocated_storage  = 20
+postgres_engine_version     = "15.7"
+postgres_database_name      = "appdb"
+postgres_username          = "postgres"
+# postgres_password is sensitive - set via environment variable or prompt
+# postgres_password = "your-secure-password-here"
+
+# Database backup and maintenance
+backup_retention_period = 7
+backup_window          = "03:00-04:00"
+maintenance_window     = "sun:04:00-sun:05:00"
+
+# ========================================
+# Domain and SSL Configuration
+# ========================================
+
+# Primary domain name for the application
+# Leave empty to skip domain setup entirely
+domain_name = ""  # e.g., "example.com"
+
+# Whether to create a new hosted zone or use existing
+create_hosted_zone = true
+
+# SSL certificate ARN from AWS Certificate Manager
+# Leave empty to auto-generate certificates with ACM
+certificate_arn = ""  # e.g., "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+
+# Domain health and monitoring
+enable_health_checks = true
+enable_dns_logging   = false
+
+# SSL configuration
+create_metabase_certificate = true
+ssl_policy = "ELBSecurityPolicy-TLS-1-2-2017-01"
+
+# Email configuration (optional)
+mx_records = []  # e.g., ["10 mail.example.com"]
+enable_spf_record = false
+enable_dmarc_record = false
+domain_verification_txt = ""  # TXT record for domain verification
+
+# ========================================
+# Load Balancer Configuration
+# ========================================
+
+# Health check configuration
+health_check_path     = "/health"
+health_check_interval = 30
+health_check_timeout  = 5
+healthy_threshold     = 2
+unhealthy_threshold   = 2
+
+# ========================================
+# Monitoring Configuration
+# ========================================
+
+# Enable CloudWatch monitoring and alarms
+enable_monitoring = true
+
+# Alarm thresholds
+high_cpu_threshold    = 80
+high_memory_threshold = 80
+
+# Email address for alarm notifications (leave empty to disable)
+alarm_email = ""  # e.g., "admin@example.com"
+
+# ========================================
+# Environment-Specific Examples
+# ========================================
+
+# Development Environment Example:
+# environment = "dev"
+# asg_min_size = 1
+# asg_max_size = 3
+# asg_desired_capacity = 2
+# mysql_instance_class = "db.t3.micro"
+# postgres_instance_class = "db.t3.micro"
+# enable_nat_gateway = false
+# backup_retention_period = 1
+
+# Staging Environment Example:
+# environment = "staging"
+# asg_min_size = 2
+# asg_max_size = 4
+# asg_desired_capacity = 2
+# mysql_instance_class = "db.t3.small"
+# postgres_instance_class = "db.t3.small"
+# enable_nat_gateway = true
+# backup_retention_period = 7
+
+# Production Environment Example:
+# environment = "prod"
+# asg_min_size = 3
+# asg_max_size = 10
+# asg_desired_capacity = 5
+# instance_type = "t3.large"
+# mysql_instance_class = "db.r5.large"
+# postgres_instance_class = "db.r5.large"
+# enable_nat_gateway = true
+# backup_retention_period = 30
+# domain_name = "yourdomain.com"
+# certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/..."
+# alarm_email = "admin@yourdomain.com"
+
+# ========================================
+# Security Best Practices
+# ========================================
+
+# 1. Never commit sensitive values like passwords to version control
+# 2. Use environment variables for sensitive data:
+#    export TF_VAR_mysql_password="your-secure-password"
+#    export TF_VAR_postgres_password="your-secure-password"
+# 3. Restrict office_ip_addresses to only your actual IP addresses
+# 4. Use strong passwords (at least 12 characters with mixed case, numbers, symbols)
+# 5. Enable MFA on your AWS account
+# 6. Regularly rotate passwords and access keys

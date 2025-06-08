@@ -1,0 +1,205 @@
+# ===============================================
+# Terraform Files
+# ===============================================
+
+# Terraform state files - NEVER commit these!
+*.tfstate
+*.tfstate.*
+
+# Terraform directory with providers and modules cache
+.terraform/
+.terraform.lock.hcl
+
+# Terraform variables with sensitive data - NEVER commit!
+terraform.tfvars
+*.auto.tfvars
+
+# Terraform plan files
+*.tfplan
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform crash log files
+crash.log
+crash.*.log
+
+# ===============================================
+# AWS and Cloud Provider Files
+# ===============================================
+
+# AWS credentials and config
+.aws/
+aws-credentials.json
+
+# Ignore any .pem files (SSH keys)
+*.pem
+*.key
+
+# ===============================================
+# Operating System Files
+# ===============================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===============================================
+# IDE and Editor Files
+# ===============================================
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# ===============================================
+# Application and Development Files
+# ===============================================
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# ===============================================
+# Docker Files
+# ===============================================
+
+# Docker
+.dockerignore
+
+# ===============================================
+# Logs and Temporary Files
+# ===============================================
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# ===============================================
+# Compressed Files (optional - you may want these)
+# ===============================================
+
+# Uncomment the lines below if you don't want to commit zip files
+# *.zip
+# *.tar.gz
+# *.rar
+# *.7z
+
+# ===============================================
+# Documentation Build Files
+# ===============================================
+
+# Generated documentation
+docs/_build/
+site/
+
+# ===============================================
+# Environment and Config Files
+# ===============================================
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# Local configuration files
+config.local.*
+local.settings.json
+
+# ===============================================
+# DevOps and CI/CD Files (Keep these in repo)
+# ===============================================
+
+# These files should be committed:
+# .github/
+# .gitlab-ci.yml
+# Dockerfile
+# docker-compose.yml
+# Makefile
+# README.md 

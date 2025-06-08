@@ -1,0 +1,259 @@
+{
+  "dashboard_templates": {
+    "executive_overview": {
+      "name": "Executive Overview",
+      "description": "High-level business metrics and KPIs for executives",
+      "collection": "Executive Dashboards",
+      "auto_refresh": 300,
+      "cards": [
+        {
+          "name": "Revenue Today",
+          "type": "scalar",
+          "position": {"row": 0, "col": 0, "size_x": 3, "size_y": 3},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT COALESCE(SUM(total_amount), 0) as revenue_today FROM orders WHERE DATE(order_date) = CURDATE() AND status IN ('completed', 'delivered')"
+          },
+          "visualization": {
+            "number_style": "currency",
+            "currency": "USD"
+          }
+        },
+        {
+          "name": "Orders Today",
+          "type": "scalar",
+          "position": {"row": 0, "col": 3, "size_x": 3, "size_y": 3},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT COUNT(*) as orders_today FROM orders WHERE DATE(order_date) = CURDATE()"
+          }
+        },
+        {
+          "name": "Active Users Today",
+          "type": "scalar",
+          "position": {"row": 0, "col": 6, "size_x": 3, "size_y": 3},
+          "query": {
+            "database": "postgresql",
+            "sql": "SELECT COUNT(DISTINCT user_id) as active_users_today FROM analytics_events WHERE DATE(timestamp) = CURRENT_DATE AND user_id IS NOT NULL"
+          }
+        },
+        {
+          "name": "Conversion Rate Today",
+          "type": "scalar",
+          "position": {"row": 0, "col": 9, "size_x": 3, "size_y": 3},
+          "query": {
+            "database": "postgresql",
+            "sql": "WITH visitors AS (SELECT COUNT(DISTINCT session_id) as total_sessions FROM analytics_events WHERE DATE(timestamp) = CURRENT_DATE), conversions AS (SELECT COUNT(DISTINCT session_id) as converted_sessions FROM analytics_events WHERE DATE(timestamp) = CURRENT_DATE AND event_type = 'conversion') SELECT CASE WHEN v.total_sessions > 0 THEN ROUND((c.converted_sessions::DECIMAL / v.total_sessions) * 100, 2) ELSE 0 END as conversion_rate FROM visitors v, conversions c"
+          },
+          "visualization": {
+            "number_style": "percent"
+          }
+        },
+        {
+          "name": "Revenue Trend (30 Days)",
+          "type": "line",
+          "position": {"row": 3, "col": 0, "size_x": 12, "size_y": 6},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT DATE(order_date) as date, SUM(total_amount) as revenue, COUNT(*) as orders FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND status IN ('completed', 'delivered') GROUP BY DATE(order_date) ORDER BY date DESC"
+          },
+          "visualization": {
+            "graph.dimensions": ["date"],
+            "graph.metrics": ["revenue"],
+            "graph.x_axis.scale": "timeseries"
+          }
+        }
+      ]
+    },
+    "sales_analytics": {
+      "name": "Sales Performance",
+      "description": "Comprehensive sales analytics and performance metrics",
+      "collection": "Sales Analytics",
+      "auto_refresh": 900,
+      "cards": [
+        {
+          "name": "Top Selling Products",
+          "type": "bar",
+          "position": {"row": 0, "col": 0, "size_x": 8, "size_y": 6},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT p.name, p.category, SUM(oi.quantity) as total_sold, SUM(oi.total_price) as revenue, COUNT(DISTINCT oi.order_id) as order_count FROM products p JOIN order_items oi ON p.id = oi.product_id JOIN orders o ON oi.order_id = o.id WHERE o.status IN ('completed', 'delivered') AND o.order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY p.id, p.name, p.category ORDER BY total_sold DESC LIMIT 10"
+          }
+        },
+        {
+          "name": "Sales by Category",
+          "type": "pie",
+          "position": {"row": 0, "col": 8, "size_x": 4, "size_y": 6},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT p.category, SUM(oi.total_price) as revenue FROM products p JOIN order_items oi ON p.id = oi.product_id JOIN orders o ON oi.order_id = o.id WHERE o.status IN ('completed', 'delivered') AND o.order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY p.category ORDER BY revenue DESC"
+          }
+        },
+        {
+          "name": "Customer Segments",
+          "type": "bar",
+          "position": {"row": 6, "col": 0, "size_x": 12, "size_y": 6},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT cs.segment_type, COUNT(*) as customers, AVG(cs.lifetime_value) as avg_clv, SUM(cs.lifetime_value) as total_clv FROM customer_segments cs WHERE cs.is_active = 1 GROUP BY cs.segment_type ORDER BY total_clv DESC"
+          }
+        }
+      ]
+    },
+    "customer_analytics": {
+      "name": "Customer Analytics",
+      "description": "Customer behavior and retention metrics",
+      "collection": "Customer Analytics",
+      "auto_refresh": 1800,
+      "cards": [
+        {
+          "name": "Customer Acquisition",
+          "type": "line",
+          "position": {"row": 0, "col": 0, "size_x": 6, "size_y": 6},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT DATE(created_at) as date, COUNT(*) as new_customers FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY DATE(created_at) ORDER BY date DESC"
+          }
+        },
+        {
+          "name": "Customer Lifetime Value Distribution",
+          "type": "bar",
+          "position": {"row": 0, "col": 6, "size_x": 6, "size_y": 6},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT CASE WHEN lifetime_value < 100 THEN '$0-$99' WHEN lifetime_value < 500 THEN '$100-$499' WHEN lifetime_value < 1000 THEN '$500-$999' WHEN lifetime_value < 2000 THEN '$1000-$1999' ELSE '$2000+' END as clv_range, COUNT(*) as customers FROM customer_segments WHERE is_active = 1 GROUP BY clv_range ORDER BY MIN(lifetime_value)"
+          }
+        },
+        {
+          "name": "User Behavior Events",
+          "type": "bar",
+          "position": {"row": 6, "col": 0, "size_x": 12, "size_y": 6},
+          "query": {
+            "database": "postgresql",
+            "sql": "SELECT event_type, COUNT(*) as event_count, COUNT(DISTINCT session_id) as unique_sessions FROM analytics_events WHERE timestamp >= NOW() - INTERVAL '7 days' GROUP BY event_type ORDER BY event_count DESC"
+          }
+        }
+      ]
+    },
+    "realtime_monitoring": {
+      "name": "Real-time Monitor",
+      "description": "Live metrics and system health monitoring",
+      "collection": "Real-time Monitoring",
+      "auto_refresh": 30,
+      "cards": [
+        {
+          "name": "Live User Activity",
+          "type": "line",
+          "position": {"row": 0, "col": 0, "size_x": 6, "size_y": 6},
+          "query": {
+            "database": "postgresql",
+            "sql": "SELECT DATE_TRUNC('minute', timestamp) as minute, COUNT(*) as events, COUNT(DISTINCT session_id) as active_sessions FROM analytics_events WHERE timestamp >= NOW() - INTERVAL '1 hour' GROUP BY DATE_TRUNC('minute', timestamp) ORDER BY minute DESC"
+          }
+        },
+        {
+          "name": "System Performance",
+          "type": "bar",
+          "position": {"row": 0, "col": 6, "size_x": 6, "size_y": 6},
+          "query": {
+            "database": "postgresql",
+            "sql": "SELECT metric_name, AVG(value) as avg_value, MAX(value) as max_value FROM performance_metrics WHERE timestamp >= NOW() - INTERVAL '1 hour' AND metric_name IN ('cpu_usage', 'memory_usage', 'response_time') GROUP BY metric_name ORDER BY metric_name"
+          }
+        },
+        {
+          "name": "Recent Orders",
+          "type": "table",
+          "position": {"row": 6, "col": 0, "size_x": 12, "size_y": 6},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT o.order_number, u.username, o.total_amount, o.status, o.order_date FROM orders o JOIN users u ON o.user_id = u.id WHERE o.order_date >= DATE_SUB(NOW(), INTERVAL 2 HOUR) ORDER BY o.order_date DESC LIMIT 20"
+          }
+        }
+      ]
+    },
+    "marketing_performance": {
+      "name": "Marketing Performance",
+      "description": "Marketing campaign metrics and attribution analysis",
+      "collection": "Marketing Analytics",
+      "auto_refresh": 1800,
+      "cards": [
+        {
+          "name": "Campaign Performance",
+          "type": "table",
+          "position": {"row": 0, "col": 0, "size_x": 12, "size_y": 8},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT mc.campaign_name, mc.campaign_type, SUM(cm.clicks) as total_clicks, SUM(cm.conversions) as total_conversions, SUM(cm.cost) as total_cost, SUM(cm.revenue) as total_revenue, CASE WHEN SUM(cm.clicks) > 0 THEN ROUND((SUM(cm.conversions)::DECIMAL / SUM(cm.clicks)) * 100, 2) ELSE 0 END as conversion_rate, CASE WHEN SUM(cm.cost) > 0 THEN ROUND(SUM(cm.revenue) / SUM(cm.cost), 2) ELSE 0 END as roas FROM marketing_campaigns mc LEFT JOIN campaign_metrics cm ON mc.id = cm.campaign_id WHERE mc.status = 'active' AND cm.metric_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY mc.id, mc.campaign_name, mc.campaign_type ORDER BY total_revenue DESC"
+          }
+        },
+        {
+          "name": "Traffic Sources",
+          "type": "pie",
+          "position": {"row": 8, "col": 0, "size_x": 6, "size_y": 6},
+          "query": {
+            "database": "mysql",
+            "sql": "SELECT traffic_source, SUM(unique_visitors) as visitors FROM traffic_analytics WHERE date_recorded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY traffic_source ORDER BY visitors DESC"
+          }
+        }
+      ]
+    }
+  },
+  "question_templates": {
+    "revenue_metrics": [
+      {
+        "name": "Daily Revenue",
+        "sql": "SELECT DATE(order_date) as date, SUM(total_amount) as revenue FROM orders WHERE status IN ('completed', 'delivered') GROUP BY DATE(order_date) ORDER BY date DESC"
+      },
+      {
+        "name": "Revenue by Category",
+        "sql": "SELECT p.category, SUM(oi.total_price) as revenue FROM products p JOIN order_items oi ON p.id = oi.product_id JOIN orders o ON oi.order_id = o.id WHERE o.status IN ('completed', 'delivered') GROUP BY p.category"
+      }
+    ],
+    "user_analytics": [
+      {
+        "name": "Daily Active Users",
+        "sql": "SELECT DATE(timestamp) as date, COUNT(DISTINCT user_id) as active_users FROM analytics_events WHERE user_id IS NOT NULL GROUP BY DATE(timestamp) ORDER BY date DESC"
+      },
+      {
+        "name": "User Engagement",
+        "sql": "SELECT event_type, COUNT(*) as event_count FROM analytics_events WHERE timestamp >= NOW() - INTERVAL '7 days' GROUP BY event_type"
+      }
+    ],
+    "performance_metrics": [
+      {
+        "name": "System Performance",
+        "sql": "SELECT metric_name, AVG(value) as avg_value FROM performance_metrics WHERE timestamp >= NOW() - INTERVAL '1 hour' GROUP BY metric_name"
+      },
+      {
+        "name": "Response Time Trends",
+        "sql": "SELECT DATE_TRUNC('hour', timestamp) as hour, AVG(value) as avg_response_time FROM performance_metrics WHERE metric_name = 'response_time' GROUP BY hour ORDER BY hour DESC"
+      }
+    ]
+  },
+  "collection_templates": [
+    {
+      "name": "Executive Dashboards",
+      "description": "High-level business metrics and KPIs for executives",
+      "color": "#E74C3C"
+    },
+    {
+      "name": "Sales Analytics",
+      "description": "Detailed sales performance metrics and customer insights",
+      "color": "#27AE60"
+    },
+    {
+      "name": "Customer Analytics",
+      "description": "Customer behavior, retention, and lifetime value analysis",
+      "color": "#9B59B6"
+    },
+    {
+      "name": "Real-time Monitoring",
+      "description": "Live system metrics and real-time business data",
+      "color": "#F39C12"
+    },
+    {
+      "name": "Marketing Analytics",
+      "description": "Campaign performance and marketing attribution analysis",
+      "color": "#E67E22"
+    }
+  ]
+}

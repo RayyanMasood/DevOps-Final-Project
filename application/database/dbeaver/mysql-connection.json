@@ -1,0 +1,121 @@
+{
+  "connections": [
+    {
+      "id": "devops-mysql-ssh",
+      "name": "DevOps MySQL (SSH Tunnel)",
+      "description": "MySQL database connection via SSH tunnel through bastion host",
+      "driver": "mysql8",
+      "url": "jdbc:mysql://localhost:3307/devops_app?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
+      "save-password": false,
+      "read-only": false,
+      "folder": "DevOps Project",
+      "configuration": {
+        "host": "localhost",
+        "port": "3307",
+        "database": "devops_app",
+        "url": "jdbc:mysql://localhost:3307/devops_app",
+        "configurationType": "MANUAL",
+        "type": "dev",
+        "closeIdleConnection": true,
+        "properties": {
+          "useSSL": "false",
+          "allowPublicKeyRetrieval": "true",
+          "serverTimezone": "UTC",
+          "characterEncoding": "utf8",
+          "useUnicode": "true",
+          "autoReconnect": "true",
+          "failOverReadOnly": "false",
+          "maxReconnects": "3",
+          "initialTimeout": "2",
+          "connectTimeout": "30000",
+          "socketTimeout": "30000"
+        },
+        "provider-properties": {
+          "@dbeaver-show-non-default-db@": "false",
+          "@dbeaver-default-schema@": "devops_app",
+          "@dbeaver-show-schema-objects@": "true"
+        },
+        "auth-model": "native",
+        "handlers": {
+          "ssh_tunnel": {
+            "type": "ssh_tunnel",
+            "enabled": true,
+            "properties": {
+              "host": "REPLACE_WITH_BASTION_HOST",
+              "port": "22",
+              "authType": "PUBLIC_KEY",
+              "userName": "ec2-user",
+              "keyPath": "REPLACE_WITH_SSH_KEY_PATH",
+              "savePassword": false,
+              "connectTimeout": "10000",
+              "aliveInterval": "0",
+              "aliveCount": "3",
+              "tunnelTimeout": "20000",
+              "localHost": "localhost",
+              "localPort": "3307",
+              "remoteHost": "REPLACE_WITH_MYSQL_RDS_ENDPOINT",
+              "remotePort": "3306",
+              "implementation": "jsch"
+            }
+          }
+        },
+        "network-handlers": [
+          {
+            "type": "ssh_tunnel",
+            "id": "ssh_tunnel",
+            "enabled": true,
+            "user": "",
+            "password": "",
+            "save-password": false,
+            "properties": {
+              "host": "REPLACE_WITH_BASTION_HOST",
+              "port": "22",
+              "authType": "PUBLIC_KEY",
+              "userName": "ec2-user",
+              "keyPath": "REPLACE_WITH_SSH_KEY_PATH",
+              "savePassword": false,
+              "connectTimeout": "10000",
+              "aliveInterval": "60",
+              "aliveCount": "3",
+              "tunnelTimeout": "20000",
+              "localHost": "localhost",
+              "localPort": "3307",
+              "remoteHost": "REPLACE_WITH_MYSQL_RDS_ENDPOINT",
+              "remotePort": "3306"
+            }
+          }
+        ]
+      },
+      "custom-properties": {
+        "dbeaver.ssh.compression": "false",
+        "dbeaver.ssh.keyfile": "REPLACE_WITH_SSH_KEY_PATH",
+        "dbeaver.connection.type": "dev"
+      },
+      "features": [
+        "supportsTransactions",
+        "supportsReferences",
+        "supportsIndexes",
+        "supportsStoredCode",
+        "supportsViews",
+        "supportsTriggers",
+        "supportsConstraints",
+        "supportsPartitions"
+      ]
+    }
+  ],
+  "virtual-models": [],
+  "connection-types": [
+    {
+      "id": "dev",
+      "name": "Development",
+      "color": "255,255,255",
+      "description": "Development database",
+      "auto-commit": true,
+      "confirm-execute": false,
+      "confirm-data-change": false,
+      "auto-close-transactions": false,
+      "smart-commit": false,
+      "smart-commit-recover": false
+    }
+  ]
+}

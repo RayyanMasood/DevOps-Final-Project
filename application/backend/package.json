@@ -1,0 +1,73 @@
+{
+  "name": "devops-backend",
+  "version": "1.0.0",
+  "description": "DevOps Final Project - Backend API with real-time data updates",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "migrate": "node src/database/migrate.js",
+    "seed": "node src/database/seed.js",
+    "db:setup": "npm run migrate && npm run seed",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "build": "echo 'No build step required for Node.js'",
+    "healthcheck": "curl -f http://localhost:${PORT:-3001}/health || exit 1"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "mysql",
+    "postgresql",
+    "websockets",
+    "api",
+    "devops"
+  ],
+  "author": "DevOps Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "compression": "^1.7.4",
+    "mysql2": "^3.6.0",
+    "pg": "^8.11.3",
+    "sequelize": "^6.32.1",
+    "socket.io": "^4.7.2",
+    "dotenv": "^16.3.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "express-rate-limit": "^6.8.1",
+    "express-validator": "^7.0.1",
+    "winston": "^3.10.0",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.0",
+    "moment": "^2.29.4",
+    "lodash": "^4.17.21",
+    "node-cron": "^3.0.2",
+    "aws-sdk": "^2.1449.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.6.2",
+    "supertest": "^6.3.3",
+    "eslint": "^8.45.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.27.5",
+    "@types/jest": "^29.5.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/devops-final-project.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/devops-final-project/issues"
+  },
+  "homepage": "https://github.com/your-org/devops-final-project#readme"
+}

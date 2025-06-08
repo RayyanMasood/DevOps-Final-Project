@@ -1,0 +1,211 @@
+/* Real-time Metrics Styles */
+
+.realtime-metrics-card {
+  height: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+}
+
+.metrics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.metrics-container {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.metric-item {
+  height: 100%;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+}
+
+.metric-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.metric-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.metric-icon {
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: rgba(24, 144, 255, 0.1);
+}
+
+.metric-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.metric-value {
+  text-align: center;
+  margin: 4px 0;
+}
+
+.metric-progress {
+  margin: 4px 0;
+}
+
+.metric-status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.metrics-summary {
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .metric-item .ant-card-body {
+    padding: 8px;
+  }
+  
+  .metric-value .ant-statistic-content-value {
+    font-size: 16px !important;
+  }
+  
+  .metric-icon {
+    font-size: 14px;
+    width: 20px;
+    height: 20px;
+  }
+  
+  .metric-title {
+    font-size: 11px;
+  }
+  
+  .metrics-summary {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 576px) {
+  .metrics-container .ant-col {
+    margin-bottom: 8px;
+  }
+  
+  .metric-content {
+    gap: 6px;
+  }
+}
+
+/* Progress bar customization */
+.metric-progress .ant-progress-bg {
+  transition: all 0.5s ease;
+}
+
+.metric-progress .ant-progress-outer {
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+/* Badge customization */
+.metric-status .ant-badge {
+  font-size: 10px;
+}
+
+/* Animation effects */
+.metric-item {
+  animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading state */
+.realtime-metrics-card.ant-card-loading .metrics-container {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Status colors */
+.status-excellent {
+  color: #52c41a;
+}
+
+.status-warning {
+  color: #faad14;
+}
+
+.status-critical {
+  color: #f5222d;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .realtime-metrics-card {
+    background: #1f1f1f;
+    border-color: #303030;
+  }
+  
+  .metric-item {
+    background: linear-gradient(135deg, #262626 0%, #1f1f1f 100%);
+    border-color: #303030;
+  }
+  
+  .metric-title {
+    color: #a6a6a6;
+  }
+  
+  .metrics-summary {
+    background: linear-gradient(135deg, #262626 0%, #1f1f1f 100%);
+    border-color: #303030;
+  }
+}
+
+/* Scrollbar styling */
+.metrics-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.metrics-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.metrics-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.metrics-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
