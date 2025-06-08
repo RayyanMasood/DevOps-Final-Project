@@ -85,13 +85,12 @@ resource "aws_iam_role_policy_attachment" "secrets_access" {
 
 # User Data Script
 locals {
-  user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    mysql_endpoint    = var.mysql_endpoint
-    postgres_endpoint = var.postgres_endpoint
-    mysql_secret_arn  = var.mysql_secret_arn
+  user_data = base64encode(templatefile("${path.module}/user_data_docker.sh", {
+    mysql_endpoint      = var.mysql_endpoint
+    postgres_endpoint   = var.postgres_endpoint
+    mysql_secret_arn    = var.mysql_secret_arn
     postgres_secret_arn = var.postgres_secret_arn
-    aws_region       = data.aws_region.current.name
-    port             = 8080
+    aws_region         = data.aws_region.current.name
   }))
 }
 

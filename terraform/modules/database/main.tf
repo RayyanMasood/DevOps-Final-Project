@@ -223,7 +223,7 @@ resource "aws_db_parameter_group" "postgres" {
 
 # Store database passwords in AWS Secrets Manager
 resource "aws_secretsmanager_secret" "mysql_password" {
-  name        = "${local.name_prefix}-mysql-password"
+  name        = "${local.name_prefix}-mysql-password-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   description = "MySQL database password"
 
   tags = merge(var.tags, {
@@ -244,7 +244,7 @@ resource "aws_secretsmanager_secret_version" "mysql_password" {
 }
 
 resource "aws_secretsmanager_secret" "postgres_password" {
-  name        = "${local.name_prefix}-postgres-password"
+  name        = "${local.name_prefix}-postgres-password-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   description = "PostgreSQL database password"
 
   tags = merge(var.tags, {
