@@ -1,0 +1,291 @@
+# Docker Compose Configuration
+# Development and testing environment setup
+
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: devops-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword123
+      MYSQL_DATABASE: devops_app
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: apppassword123
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/mysql:/docker-entrypoint-initdb.d
+    networks:
+      - devops-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # PostgreSQL Database  
+  postgresql:
+    image: postgres:15-alpine
+    container_name: devops-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: devops_analytics
+      POSTGRES_USER: analytics_user
+      POSTGRES_PASSWORD: analyticspassword123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+      - ./database/postgresql:/docker-entrypoint-initdb.d
+    networks:
+      - devops-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analytics_user -d devops_analytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache (for session management and caching)
+  redis:
+    image: redis:7-alpine
+    container_name: devops-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - devops-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      target: development
+    container_name: devops-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      
+      # Database connections
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: devops_app
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: apppassword123
+      
+      POSTGRESQL_HOST: postgresql
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_DATABASE: devops_analytics
+      POSTGRESQL_USER: analytics_user
+      POSTGRESQL_PASSWORD: analyticspassword123
+      
+      # Redis connection
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # Security
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      SESSION_SECRET: your-super-secret-session-key-change-in-production
+      
+      # CORS
+      CORS_ORIGIN: http://localhost:3000
+      
+      # Logging
+      LOG_LEVEL: debug
+      
+      # Features
+      ENABLE_REAL_TIME_DATA: true
+      ENABLE_ANALYTICS: true
+      ENABLE_MONITORING: true
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/logs:/app/logs
+      - backend_node_modules:/app/node_modules
+    networks:
+      - devops-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    container_name: devops-frontend
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: http://localhost:3001/api
+      REACT_APP_WEBSOCKET_URL: ws://localhost:3001
+      GENERATE_SOURCEMAP: true
+      FAST_REFRESH: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - devops-network
+    depends_on:
+      - backend
+    stdin_open: true
+    tty: true
+
+  # Adminer (Database Administration Tool)
+  adminer:
+    image: adminer:4.8.1
+    container_name: devops-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - devops-network
+    depends_on:
+      - mysql
+      - postgresql
+
+  # MailHog (Email Testing Tool)
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: devops-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web interface
+    networks:
+      - devops-network
+
+# Production Environment Override
+---
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  # Production MySQL with SSL and better security
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+    secrets:
+      - mysql_root_password
+      - mysql_password
+    command: 
+      - --default-authentication-plugin=mysql_native_password
+      - --ssl-mode=REQUIRED
+      - --max-connections=1000
+      - --innodb-buffer-pool-size=1G
+
+  # Production PostgreSQL with optimizations
+  postgresql:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+
+  # Production Backend
+  backend:
+    build:
+      context: ./backend
+      target: production
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Production Frontend with Nginx
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # Remove development tools in production
+  adminer:
+    deploy:
+      replicas: 0
+
+  mailhog:
+    deploy:
+      replicas: 0
+
+# Networks
+networks:
+  devops-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Volumes
+volumes:
+  mysql_data:
+    driver: local
+  postgresql_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_node_modules:
+    driver: local
+  frontend_node_modules:
+    driver: local
+
+# Secrets (for production)
+secrets:
+  mysql_root_password:
+    external: true
+  mysql_password:
+    external: true
+  postgres_password:
+    external: true

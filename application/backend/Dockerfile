@@ -1,91 +1,111 @@
-# Backend Multi-stage Dockerfile
-# Optimized for production deployment with minimal image size
-
-# Stage 1: Build stage
-FROM node:18-alpine AS builder
+# Build stage
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
-
-# Install dependencies for native modules (if needed)
-RUN apk add --no-cache python3 make g++
 
 # Copy package files
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --only=production
 
-# Stage 2: Production stage
-FROM node:18-alpine AS production
+# Copy source code
+COPY . .
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build the application
+RUN npm run build
+
+# Development stage
+FROM node:20-alpine AS development
+
+# Install required system dependencies for Prisma
+RUN apk add --no-cache \
+    dumb-init \
+    openssl \
+    openssl-dev \
+    libc6-compat
 
 # Set working directory
-WORKDIR /app
-
-# Install curl for health checks
-RUN apk add --no-cache curl
-
-# Copy node_modules from builder stage
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-
-# Copy application code
-COPY --chown=nodejs:nodejs ./src ./src
-COPY --chown=nodejs:nodejs package*.json ./
-
-# Create logs directory
-RUN mkdir -p logs && chown -R nodejs:nodejs logs
-
-# Switch to non-root user
-USER nodejs
-
-# Expose port
-EXPOSE 3001
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3001/api/health || exit 1
-
-# Start the application
-CMD ["npm", "start"]
-
-# Development stage (for development builds)
-FROM node:18-alpine AS development
-
-# Install development dependencies
-RUN apk add --no-cache python3 make g++
-
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies)
-RUN npm install
+# Install all dependencies (including dev)
+RUN npm ci
 
-# Copy application code
-COPY ./src ./src
+# Copy source code
+COPY . .
+
+# Generate Prisma client with correct binary target
+RUN npx prisma generate
+
+# Create app user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S backend -u 1001
 
 # Create logs directory
-RUN mkdir -p logs
+RUN mkdir -p logs && chown backend:nodejs logs
+
+# Switch to non-root user
+USER backend
 
 # Expose port
 EXPOSE 3001
 
-# Use nodemon for development
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "const http = require('http'); const options = { host: 'localhost', port: 3001, path: '/api/health', timeout: 2000 }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1)); req.end();"
+
+# Start development server
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["npm", "run", "dev"]
 
-# Testing stage
-FROM development AS testing
+# Production stage
+FROM node:20-alpine AS production
 
-# Copy test files
-COPY ./tests ./tests
+# Install required system dependencies for Prisma
+RUN apk add --no-cache \
+    dumb-init \
+    openssl \
+    openssl-dev \
+    libc6-compat
 
-# Run tests
-RUN npm test
+# Create app user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S backend -u 1001
 
-# Default to production stage
-FROM production
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built application from builder stage
+COPY --from=builder --chown=backend:nodejs /app/dist ./dist
+COPY --from=builder --chown=backend:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=backend:nodejs /app/prisma ./prisma
+
+# Create logs directory
+RUN mkdir -p logs && chown backend:nodejs logs
+
+# Switch to non-root user
+USER backend
+
+# Expose port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "const http = require('http'); const options = { host: 'localhost', port: 3001, path: '/api/health', timeout: 2000 }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1)); req.end();"
+
+# Start the application
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/server.js"] 

@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User management and authentication
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  role      UserRole @default(USER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  dashboards   Dashboard[]
+  sessions     Session[]
+  events       Event[]
+  activities   ActivityLog[]
+  
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+// Dashboard and KPI data
+model Dashboard {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  config      Json
+  isPublic    Boolean  @default(false)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user User   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  kpis KPI[]
+  
+  @@map("dashboards")
+}
+
+model KPI {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        KPIType
+  query       String
+  target      Float?
+  unit        String?
+  dashboardId String
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  metrics   Metric[]
+  
+  @@map("kpis")
+}
+
+model Metric {
+  id        String   @id @default(cuid())
+  kpiId     String
+  value     Float
+  timestamp DateTime @default(now())
+  metadata  Json?
+  
+  // Relations
+  kpi KPI @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  
+  @@map("metrics")
+}
+
+// Application and infrastructure events
+model Event {
+  id          String      @id @default(cuid())
+  type        EventType
+  title       String
+  description String?
+  severity    EventSeverity @default(INFO)
+  source      String
+  userId      String?
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("events")
+}
+
+// Audit log for user activities
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // Action performed
+  resource  String?  // Resource affected
+  details   Json?    // Additional details
+  ipAddress String?
+  userAgent String?
+  timestamp DateTime @default(now())
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("activity_logs")
+}
+
+// Health check status for services
+model HealthCheck {
+  id        String            @id @default(cuid())
+  service   String
+  status    HealthCheckStatus @default(UNKNOWN)
+  endpoint  String
+  response  Json?
+  latency   Int?
+  timestamp DateTime          @default(now())
+  
+  @@map("health_checks")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  USER
+  VIEWER
+}
+
+enum KPIType {
+  COUNTER
+  GAUGE
+  HISTOGRAM
+  SUMMARY
+}
+
+enum EventType {
+  DEPLOYMENT
+  ERROR
+  WARNING
+  INFO
+  SECURITY
+  PERFORMANCE
+}
+
+enum EventSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum HealthCheckStatus {
+  HEALTHY
+  UNHEALTHY
+  DEGRADED
+  UNKNOWN
+} 
