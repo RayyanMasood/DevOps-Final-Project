@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../database/connection';
-// import { testMySQLConnection } from '../database/mysql'; // Temporarily disabled
+// import { testMySQLConnection } from '../database/mysql'; // Using dynamic import in notes route
 
 const router = Router();
 
@@ -18,8 +18,27 @@ router.get('/detailed', async (req: Request, res: Response) => {
     // Test PostgreSQL connection
     const postgresHealthy = await db.checkConnection();
     
-    // Test MySQL connection - temporarily disabled
-    const mysqlHealthy = false; // await testMySQLConnection();
+    // Test MySQL connection with dynamic import
+    let mysqlHealthy = false;
+    try {
+      const mysql = require('mysql2');
+      const mysqlConn = mysql.createConnection({
+        host: process.env.MYSQL_HOST || 'mysql',
+        port: parseInt(process.env.MYSQL_PORT || '3306'),
+        user: process.env.MYSQL_USER || 'devops_user',
+        password: process.env.MYSQL_PASSWORD || 'devops_password',
+        database: process.env.MYSQL_DATABASE || 'devops_dashboard',
+      });
+      
+      mysqlHealthy = await new Promise((resolve) => {
+        mysqlConn.ping((err: any) => {
+          mysqlConn.end();
+          resolve(!err);
+        });
+      });
+    } catch (error) {
+      mysqlHealthy = false;
+    }
 
     const health = {
       status: 'OK',
