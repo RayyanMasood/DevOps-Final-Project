@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 
 import { logger } from './utils/logger';
 import { connectDatabase } from './database/connection';
+import { connectMySQL } from './database/mysql';
 import { connectRedis } from './services/redis';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -178,9 +179,15 @@ process.on('uncaughtException', (error) => {
 // Start server
 async function startServer() {
   try {
-    // Initialize database connection
+    // Initialize PostgreSQL database connection
     await connectDatabase();
-    logger.info('Database connected successfully');
+    logger.info('PostgreSQL database connected successfully');
+
+    // Initialize MySQL database connection
+    if (process.env.MYSQL_URL) {
+      await connectMySQL();
+      logger.info('MySQL database connected successfully');
+    }
 
     // Initialize Redis connection
     if (process.env.REDIS_URL) {
