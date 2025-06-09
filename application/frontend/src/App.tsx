@@ -1,9 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 
-// TODO: Import actual components when created
-// import Dashboard from './components/Dashboard';
-// import Login from './components/Auth/Login';
+// Import components
+import Notes from './components/Notes';
 
 function App() {
   return (
@@ -17,6 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/notes" element={<Notes />} />
           <Route path="/login" element={<LoginPage />} />
           {/* Add more routes as needed */}
         </Routes>
@@ -58,12 +58,18 @@ function HomePage() {
           </div>
         </div>
         
-        <div className="mt-8">
+        <div className="mt-8 flex gap-4 justify-center">
           <a
             href="/dashboard"
             className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
             View Dashboard
+          </a>
+          <a
+            href="/notes"
+            className="inline-flex items-center px-6 py-3 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/90 transition-colors"
+          >
+            Manage Notes
           </a>
         </div>
       </div>

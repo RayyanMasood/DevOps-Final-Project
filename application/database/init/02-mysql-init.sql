@@ -33,6 +33,20 @@ CREATE TABLE IF NOT EXISTS metrics_mysql (
     metadata JSON
 );
 
+-- Create notes table for testing
+CREATE TABLE IF NOT EXISTS notes_mysql (
+    id VARCHAR(255) PRIMARY KEY,
+    title VARCHAR(500) NOT NULL,
+    content TEXT NOT NULL,
+    tags JSON,
+    is_public BOOLEAN DEFAULT FALSE,
+    user_id VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_notes_mysql_user_id (user_id),
+    INDEX idx_notes_mysql_created_at (created_at)
+);
+
 -- Insert sample data
 INSERT IGNORE INTO users_mysql (id, email, username, password, first_name, last_name, role) VALUES
 ('mysql-1', 'admin@devops.local', 'admin_mysql', 'hashed_password_here', 'MySQL', 'Admin', 'ADMIN'),
@@ -45,6 +59,12 @@ INSERT IGNORE INTO metrics_mysql (id, name, value, unit, category, metadata) VAL
 ('metric-mysql-2', 'Memory Usage', 82.3, '%', 'SYSTEM', '{"server": "mysql-server-1"}'),
 ('metric-mysql-3', 'Active Connections', 45, 'count', 'APPLICATION', '{"database": "mysql"}'),
 ('metric-mysql-4', 'Query Response Time', 123.45, 'ms', 'APPLICATION', '{"database": "mysql"}');
+
+-- Insert sample notes
+INSERT IGNORE INTO notes_mysql (id, title, content, tags, is_public, user_id) VALUES
+('note-mysql-1', 'Welcome to MySQL Notes', 'This is a sample note stored in MySQL database. You can create, edit, and delete notes from here.', '["mysql", "database", "notes"]', TRUE, 'mysql-1'),
+('note-mysql-2', 'Database Performance Tips', 'Tips for optimizing MySQL performance:\n1. Use proper indexing\n2. Optimize queries\n3. Monitor slow queries', '["mysql", "performance", "tips"]', TRUE, 'mysql-1'),
+('note-mysql-3', 'Private Note', 'This is a private note visible only to the owner.', '["private", "personal"]', FALSE, 'mysql-2');
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_mysql_email ON users_mysql(email);

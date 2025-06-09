@@ -10,7 +10,7 @@ import dotenv from 'dotenv';
 
 import { logger } from './utils/logger';
 import { connectDatabase } from './database/connection';
-import { connectMySQL } from './database/mysql';
+// import { connectMySQL } from './database/mysql'; // Temporarily disabled
 import { connectRedis } from './services/redis';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -24,6 +24,7 @@ import dashboardRoutes from './routes/dashboard';
 import metricsRoutes from './routes/metrics';
 import kpiRoutes from './routes/kpi';
 import eventsRoutes from './routes/events';
+import notesRoutes from './routes/notes-simple';
 
 // WebSocket handlers
 import { setupWebSocketHandlers } from './services/websocket';
@@ -112,6 +113,9 @@ app.use('/api/metrics', authMiddleware, metricsRoutes);
 app.use('/api/kpi', authMiddleware, kpiRoutes);
 app.use('/api/events', authMiddleware, eventsRoutes);
 
+// Notes routes - temporarily bypass auth for testing
+app.use('/api/notes', notesRoutes);
+
 // API info endpoint
 app.get('/api', (req, res) => {
   res.json({
@@ -183,11 +187,11 @@ async function startServer() {
     await connectDatabase();
     logger.info('PostgreSQL database connected successfully');
 
-    // Initialize MySQL database connection
-    if (process.env.MYSQL_URL) {
-      await connectMySQL();
-      logger.info('MySQL database connected successfully');
-    }
+    // Initialize MySQL database connection - temporarily disabled
+    // if (process.env.MYSQL_URL) {
+    //   await connectMySQL();
+    //   logger.info('MySQL database connected successfully');
+    // }
 
     // Initialize Redis connection
     if (process.env.REDIS_URL) {

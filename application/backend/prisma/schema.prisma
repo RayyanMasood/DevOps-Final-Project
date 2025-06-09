@@ -29,6 +29,7 @@ model User {
   sessions     Session[]
   events       Event[]
   activities   ActivityLog[]
+  notes        Note[]
   
   @@map("users")
 }
@@ -130,6 +131,23 @@ model ActivityLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("activity_logs")
+}
+
+// Notes for users
+model Note {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  tags      String[]
+  isPublic  Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notes")
 }
 
 // Health check status for services
