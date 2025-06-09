@@ -1,23 +1,23 @@
-import mysql from 'mysql2';
+import { createConnection, Connection, RowDataPacket } from 'mysql2';
 import { logger } from '../utils/logger';
 
-let mysqlConnection: mysql.Connection | null = null;
+let mysqlConnection: Connection | null = null;
 
 export const initializeMySQLConnection = async (): Promise<void> => {
   try {
-    const connection = mysql.createConnection({
+    const connection = createConnection({
       host: process.env.MYSQL_HOST || 'mysql',
       port: parseInt(process.env.MYSQL_PORT || '3306'),
       user: process.env.MYSQL_USER || 'devops_user',
       password: process.env.MYSQL_PASSWORD || 'devops_password',
-      database: process.env.MYSQL_DATABASE || 'devops_dashboard',
+      database: process.env.MYSQL_DATABASE || 'devops_dashboard_mysql',
       connectTimeout: 60000,
       acquireTimeout: 60000,
       timeout: 60000,
     });
 
     // Test the connection
-    connection.ping((err: any) => {
+    connection.ping((err) => {
       if (err) {
         logger.error('MySQL connection failed:', err);
       } else {
@@ -31,7 +31,7 @@ export const initializeMySQLConnection = async (): Promise<void> => {
   }
 };
 
-export const getMySQLConnection = (): mysql.Connection | null => {
+export const getMySQLConnection = (): Connection | null => {
   return mysqlConnection;
 };
 
@@ -42,7 +42,7 @@ export const testMySQLConnection = async (): Promise<boolean> => {
     }
 
     return new Promise((resolve) => {
-      mysqlConnection!.ping((err: any) => {
+      mysqlConnection!.ping((err) => {
         if (err) {
           logger.error('MySQL ping failed:', err);
           resolve(false);
