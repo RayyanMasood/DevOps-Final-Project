@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../database/connection';
-// import { testMySQLConnection } from '../database/mysql'; // Temporarily disabled
+import { testMySQLConnection } from '../database/mysql';
 
 const router = Router();
 
@@ -18,8 +18,8 @@ router.get('/detailed', async (req: Request, res: Response) => {
     // Test PostgreSQL connection
     const postgresHealthy = await db.checkConnection();
     
-    // Test MySQL connection - temporarily disabled
-    const mysqlHealthy = false; // await testMySQLConnection();
+    // Test MySQL connection
+    const mysqlHealthy = await testMySQLConnection();
 
     const health = {
       status: 'OK',

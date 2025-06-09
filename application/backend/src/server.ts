@@ -10,7 +10,7 @@ import dotenv from 'dotenv';
 
 import { logger } from './utils/logger';
 import { connectDatabase } from './database/connection';
-// import { connectMySQL } from './database/mysql'; // Temporarily disabled
+import { initializeMySQLConnection } from './database/mysql';
 import { connectRedis } from './services/redis';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -187,11 +187,9 @@ async function startServer() {
     await connectDatabase();
     logger.info('PostgreSQL database connected successfully');
 
-    // Initialize MySQL database connection - temporarily disabled
-    // if (process.env.MYSQL_URL) {
-    //   await connectMySQL();
-    //   logger.info('MySQL database connected successfully');
-    // }
+    // Initialize MySQL database connection
+    await initializeMySQLConnection();
+    logger.info('MySQL database connection initialized');
 
     // Initialize Redis connection
     if (process.env.REDIS_URL) {

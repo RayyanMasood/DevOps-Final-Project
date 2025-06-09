@@ -10,7 +10,7 @@ export const initializeMySQLConnection = async (): Promise<void> => {
       port: parseInt(process.env.MYSQL_PORT || '3306'),
       user: process.env.MYSQL_USER || 'devops_user',
       password: process.env.MYSQL_PASSWORD || 'devops_password',
-      database: process.env.MYSQL_DATABASE || 'devops_dashboard_mysql',
+      database: process.env.MYSQL_DATABASE || 'devops_dashboard',
       connectTimeout: 60000,
       acquireTimeout: 60000,
       timeout: 60000,
