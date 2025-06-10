@@ -163,6 +163,19 @@ output "postgres_connection_string" {
   value       = "postgresql://${var.postgres_username}:PASSWORD@${module.database.postgres_endpoint}:${module.database.postgres_port}/${module.database.postgres_database_name}"
 }
 
+# Secrets Manager ARNs for database passwords
+output "mysql_secret_arn" {
+  description = "ARN of the MySQL password secret in AWS Secrets Manager"
+  value       = module.database.mysql_secret_arn
+  sensitive   = true
+}
+
+output "postgres_secret_arn" {
+  description = "ARN of the PostgreSQL password secret in AWS Secrets Manager"
+  value       = module.database.postgres_secret_arn
+  sensitive   = true
+}
+
 # ========================================
 # Domain and SSL Outputs (Conditional)
 # ========================================
