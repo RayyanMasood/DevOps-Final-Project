@@ -53,6 +53,7 @@ resource "aws_db_instance" "mysql" {
   db_name  = var.mysql_database_name
   username = var.mysql_username
   password = var.mysql_password != "" ? var.mysql_password : random_password.mysql_password[0].result
+  parameter_group_name = aws_db_parameter_group.mysql.name
 
   # Network configuration
   db_subnet_group_name   = var.db_subnet_group_name
@@ -105,6 +106,7 @@ resource "aws_db_instance" "postgres" {
   db_name  = var.postgres_database_name
   username = var.postgres_username
   password = var.postgres_password != "" ? var.postgres_password : random_password.postgres_password[0].result
+  parameter_group_name = aws_db_parameter_group.postgres.name
 
   # Network configuration
   db_subnet_group_name   = var.db_subnet_group_name

@@ -7,7 +7,7 @@ echo "Starting Docker deployment user data script at $(date)"
 
 # Update and install packages
 yum update -y
-yum install -y docker git curl wget unzip jq awscli
+yum install -y docker git curl wget unzip jq awscli mysql postgresql15
 
 # Install Docker Compose
 curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -22,159 +22,226 @@ usermod -a -G docker ec2-user
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
 rpm -U ./amazon-cloudwatch-agent.rpm
 
-# Create app directory
-mkdir -p /opt/app
-cd /opt/app
-
-# Set environment variables
+# Set environment variables for database connectivity
 export MYSQL_HOST="${mysql_endpoint}"
 export POSTGRES_HOST="${postgres_endpoint}"
 export AWS_REGION="${aws_region}"
 export MYSQL_SECRET_ARN="${mysql_secret_arn}"
 export POSTGRES_SECRET_ARN="${postgres_secret_arn}"
 
-# Create Docker Compose file
-cat > docker-compose.yml << 'EOF'
-version: '3.8'
+# Clone the application from GitHub
+echo "Cloning application repository..."
+cd /opt
+git clone https://github.com/RayyanMasood/DevOps-Final-Project.git app
+cd /opt/app/app
+
+# Get database credentials from AWS Secrets Manager
+echo "Retrieving database credentials from Secrets Manager..."
+MYSQL_SECRET=$(aws secretsmanager get-secret-value --secret-id "${mysql_secret_arn}" --region "${aws_region}" --query SecretString --output text)
+POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id "${postgres_secret_arn}" --region "${aws_region}" --query SecretString --output text)
+
+MYSQL_PASSWORD=$(echo $MYSQL_SECRET | jq -r '.password')
+POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')
+
+# Update docker-compose.yml with RDS endpoints and credentials
+cat > docker-compose.production.yml << EOF
 services:
-  nginx:
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: notes-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # MySQL RDS Configuration
+      MYSQL_HOST: ${mysql_endpoint}
+      MYSQL_PORT: 3306
+      MYSQL_USER: notes_user
+      MYSQL_PASSWORD: $MYSQL_PASSWORD
+      MYSQL_DATABASE: notes_db
+      # PostgreSQL RDS Configuration  
+      POSTGRES_HOST: ${postgres_endpoint}
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: notes_user
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+      POSTGRES_DATABASE: notes_db
+    ports:
+      - "3001:3001"
+    networks:
+      - notes-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Frontend React App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: notes-frontend
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: /api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - notes-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Load Balancer (nginx)
+  loadbalancer:
     image: nginx:alpine
-    container_name: frontend
+    container_name: notes-loadbalancer
+    restart: unless-stopped
     ports:
       - "80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./html:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
     depends_on:
+      - frontend
       - backend
-    restart: unless-stopped
+    networks:
+      - notes-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  backend:
-    image: node:18-alpine
-    container_name: backend
-    working_dir: /app
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=production
-      - PORT=3001
-    volumes:
-      - ./backend:/app
-    command: ["sh", "-c", "npm install && npm start"]
-    restart: unless-stopped
+networks:
+  notes-network:
+    driver: bridge
 EOF
 
-# Create Nginx config
-cat > nginx.conf << 'EOF'
-events { worker_connections 1024; }
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-    charset utf-8;
-    
-    upstream backend { server backend:3001; }
-    
-    server {
-        listen 80;
-        server_name _;
-        
-        location /health {
-            access_log off;
-            return 200 "healthy\n";
-            add_header Content-Type "text/plain; charset=utf-8";
-        }
-        
-        location /api/ {
-            proxy_pass http://backend/api/;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-        
-        location / {
-            root /usr/share/nginx/html;
-            index index.html;
-            try_files $uri $uri/ /index.html;
-            add_header Content-Type "text/html; charset=utf-8";
-        }
-    }
-}
-EOF
-
-# Create frontend
-mkdir -p html
-cat > html/index.html << 'EOF'
-<!DOCTYPE html>
-<html><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DevOps Final Project</title>
-<style>body{font-family:Arial;margin:0;padding:20px;background:#f4f4f4}
-.container{max-width:1200px;margin:0 auto;background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
-h1{color:#333;text-align:center}.status{background:#e8f5e8;padding:15px;border-radius:5px;margin:20px 0}
-.feature{background:#f8f9fa;padding:15px;margin:10px 0;border-left:4px solid #007bff}</style></head>
-<body><div class="container"><h1>DevOps Final Project - Docker Deployment</h1>
-<div class="status"><h3>Deployment Status: Active</h3><p>Multi-tier application running successfully!</p></div>
-<div class="feature"><h3>Infrastructure</h3><ul><li>VPC with Public/Private/Database Subnets</li>
-<li>Application Load Balancer</li><li>Auto Scaling Group (2 EC2 instances)</li><li>MySQL & PostgreSQL Databases</li>
-<li>CloudWatch Monitoring</li><li>Docker Containerized Apps</li></ul></div>
-<div class="feature"><h3>Docker Services</h3><ul><li>Nginx Frontend (Port 80)</li>
-<li>Node.js Backend API (Port 3001)</li><li>Multi-stage Dockerfiles</li><li>Container Orchestration</li></ul></div></div>
-<script>fetch('/api/health').then(r=>r.text()).then(d=>console.log('Backend:',d)).catch(e=>console.log('Backend loading:',e));</script></body></html>
-EOF
-
-# Create backend
-mkdir -p backend
-cat > backend/package.json << 'EOF'
-{"name":"devops-backend","version":"1.0.0","main":"server.js","scripts":{"start":"node server.js"},"dependencies":{"express":"^4.18.2","cors":"^2.8.5"}}
-EOF
-
-cat > backend/server.js << 'EOF'
-const express = require('express');
-const cors = require('cors');
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
-});
-
-app.get('/api/info', (req, res) => {
-  res.json({
-    service: 'DevOps Final Project Backend',
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log('Server running on port ' + PORT);
-});
-EOF
-
-# Start application
+# Ensure proper permissions
 chown -R ec2-user:ec2-user /opt/app
-docker-compose up -d
 
-# Basic CloudWatch config
+# Wait for Docker to be fully ready
+sleep 10
+
+# Build and start the application using production compose file
+echo "Building and starting application containers..."
+docker-compose -f docker-compose.production.yml up -d --build
+
+# Wait for services to be ready
+echo "Waiting for services to be ready..."
+sleep 60
+
+# Initialize database schemas
+echo "Initializing database schemas..."
+
+# Wait for databases to be accessible
+for i in {1..10}; do
+    echo "Checking database connectivity (attempt $i)..."
+    
+    # Test MySQL connection
+    if mysql -h "${mysql_endpoint}" -u notes_user -p"$MYSQL_PASSWORD" -e "SELECT 1;" > /dev/null 2>&1; then
+        echo "MySQL connection successful"
+        # Initialize MySQL schema
+        mysql -h "${mysql_endpoint}" -u notes_user -p"$MYSQL_PASSWORD" < /opt/app/app/database/mysql/init.sql
+        break
+    else
+        echo "MySQL connection failed, retrying in 30 seconds..."
+        sleep 30
+    fi
+done
+
+for i in {1..10}; do
+    echo "Checking PostgreSQL connectivity (attempt $i)..."
+    
+    # Test PostgreSQL connection  
+    if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${postgres_endpoint}" -U notes_user -d notes_db -c "SELECT 1;" > /dev/null 2>&1; then
+        echo "PostgreSQL connection successful"
+        # Initialize PostgreSQL schema
+        PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${postgres_endpoint}" -U notes_user -d notes_db -f /opt/app/app/database/postgres/init.sql
+        break
+    else
+        echo "PostgreSQL connection failed, retrying in 30 seconds..."
+        sleep 30
+    fi
+done
+
+# Check container status
+echo "Container status:"
+docker-compose -f docker-compose.production.yml ps
+
+# Test application health
+echo "Testing application health..."
+for i in {1..5}; do
+    if curl -f http://localhost/health > /dev/null 2>&1; then
+        echo "Application health check passed"
+        break
+    else
+        echo "Health check attempt $i failed, retrying in 10 seconds..."
+        sleep 10
+    fi
+done
+
+# Configure CloudWatch agent
 cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'EOF'
 {
   "metrics": {
-    "namespace": "CWAgent",
+    "namespace": "DevOpsApp/EC2",
     "metrics_collected": {
-      "cpu": {"measurement": ["cpu_usage_idle"], "metrics_collection_interval": 60},
-      "mem": {"measurement": ["mem_used_percent"], "metrics_collection_interval": 60}
+      "cpu": {
+        "measurement": ["cpu_usage_idle", "cpu_usage_iowait", "cpu_usage_user", "cpu_usage_system"],
+        "metrics_collection_interval": 60,
+        "totalcpu": false
+      },
+      "disk": {
+        "measurement": ["used_percent"],
+        "metrics_collection_interval": 60,
+        "resources": ["*"]
+      },
+      "diskio": {
+        "measurement": ["io_time"],
+        "metrics_collection_interval": 60,
+        "resources": ["*"]
+      },
+      "mem": {
+        "measurement": ["mem_used_percent"],
+        "metrics_collection_interval": 60
+      },
+      "netstat": {
+        "measurement": ["tcp_established", "tcp_time_wait"],
+        "metrics_collection_interval": 60
+      },
+      "swap": {
+        "measurement": ["swap_used_percent"],
+        "metrics_collection_interval": 60
+      }
     }
   },
   "logs": {
     "logs_collected": {
       "files": {
         "collect_list": [
-          {"file_path": "/var/log/user-data.log", "log_group_name": "/aws/ec2/user-data", "log_stream_name": "{instance_id}"},
-          {"file_path": "/var/log/messages", "log_group_name": "/aws/ec2/var/log/messages", "log_stream_name": "{instance_id}"}
+          {
+            "file_path": "/var/log/user-data.log",
+            "log_group_name": "/aws/ec2/user-data",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/var/log/messages",
+            "log_group_name": "/aws/ec2/var/log/messages", 
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC"
+          }
         ]
       }
     }
@@ -185,6 +252,29 @@ EOF
 # Start CloudWatch agent
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
-sleep 30
-docker-compose ps
+# Create systemd service for the application to ensure it starts on boot
+cat > /etc/systemd/system/notes-app.service << 'EOF'
+[Unit]
+Description=Notes Application
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/app/app
+ExecStart=/usr/local/bin/docker-compose -f docker-compose.production.yml up -d
+ExecStop=/usr/local/bin/docker-compose -f docker-compose.production.yml down
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable the service
+systemctl enable notes-app.service
+
+# Final status check
+echo "Final deployment status check:"
+docker-compose -f docker-compose.production.yml logs --tail=20
 echo "Docker deployment completed at $(date)" 
