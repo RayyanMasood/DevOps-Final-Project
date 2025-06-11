@@ -25,7 +25,10 @@ const postgresConfig = {
   database: process.env.POSTGRES_DATABASE || 'notes_db',
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 20000,
+  connectionTimeoutMillis: 60000,
+  statement_timeout: 60000,
+  query_timeout: 60000,
+  ssl: false,
 };
 
 async function initializeMysql() {
@@ -59,13 +62,26 @@ async function initializeMysql() {
 async function initializePostgres() {
   try {
     console.log('Connecting to PostgreSQL...');
+    console.log('PostgreSQL config:', {
+      host: postgresConfig.host,
+      port: postgresConfig.port,
+      user: postgresConfig.user,
+      database: postgresConfig.database,
+      connectionTimeoutMillis: postgresConfig.connectionTimeoutMillis
+    });
+    
     postgresPool = new Pool(postgresConfig);
     
-    // Test connection
+    // Test connection with detailed error logging
+    console.log('Testing PostgreSQL connection...');
     const client = await postgresPool.connect();
+    console.log('PostgreSQL client connected successfully');
+    
     await client.query('SELECT 1');
+    console.log('PostgreSQL test query successful');
     
     // Create notes table if it doesn't exist
+    console.log('Creating PostgreSQL notes table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS notes (
         id SERIAL PRIMARY KEY,
@@ -76,8 +92,10 @@ async function initializePostgres() {
         database_type VARCHAR(50) DEFAULT 'postgres'
       )
     `);
+    console.log('PostgreSQL notes table created/verified');
     
     // Create update trigger for updated_at
+    console.log('Creating PostgreSQL trigger...');
     await client.query(`
       CREATE OR REPLACE FUNCTION update_updated_at_column()
       RETURNS TRIGGER AS $$
@@ -92,12 +110,20 @@ async function initializePostgres() {
         BEFORE UPDATE ON notes 
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     `);
+    console.log('PostgreSQL trigger created successfully');
     
     client.release();
     console.log('PostgreSQL connected and initialized successfully');
     return postgresPool;
   } catch (error) {
-    console.error('PostgreSQL connection failed:', error);
+    console.error('PostgreSQL connection failed with detailed error:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage,
+      stack: error.stack
+    });
     throw error;
   }
 }

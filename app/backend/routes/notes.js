@@ -144,19 +144,35 @@ router.post('/', async (req, res) => {
     // Create note in PostgreSQL
     if ((dbToUse === 'postgres' || dbToUse === 'both')) {
       const postgresPool = getPostgresPool();
+      console.log('PostgreSQL pool available:', !!postgresPool);
       if (postgresPool) {
         try {
+          console.log('Attempting to connect to PostgreSQL...');
           const client = await postgresPool.connect();
+          console.log('PostgreSQL client connected successfully');
+          
+          console.log('Executing PostgreSQL insert query...');
           const result = await client.query(
             'INSERT INTO notes (title, content, database_type) VALUES ($1, $2, $3) RETURNING id, title, content, created_at, updated_at, database_type',
             [title, content || '', 'postgres']
           );
+          console.log('PostgreSQL insert successful:', result.rows[0]);
           
           results.push(result.rows[0]);
           client.release();
+          console.log('PostgreSQL client released');
         } catch (error) {
-          console.error('Error creating PostgreSQL note:', error);
+          console.error('Error creating PostgreSQL note with details:', {
+            message: error.message,
+            code: error.code,
+            errno: error.errno,
+            sqlState: error.sqlState,
+            sqlMessage: error.sqlMessage,
+            stack: error.stack
+          });
         }
+      } else {
+        console.error('PostgreSQL pool is not available');
       }
     }
     
