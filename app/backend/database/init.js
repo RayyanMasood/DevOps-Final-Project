@@ -25,7 +25,7 @@ const postgresConfig = {
   database: process.env.POSTGRES_DATABASE || 'notes_db',
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 20000,
 };
 
 async function initializeMysql() {
