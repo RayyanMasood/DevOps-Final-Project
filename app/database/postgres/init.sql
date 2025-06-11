@@ -38,9 +38,6 @@ INSERT INTO notes (title, content, database_type) VALUES
 ('PostgreSQL Sample Note', 'This note demonstrates PostgreSQL storage capabilities with ACID compliance.', 'postgres'),
 ('Database Comparison', 'You can compare how the same app works with both MySQL and PostgreSQL backends!', 'postgres');
 
--- Show table structure
-\d notes;
-
 -- Show inserted data
 SELECT COUNT(*) as total_notes FROM notes;
 
