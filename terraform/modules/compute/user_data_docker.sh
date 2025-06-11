@@ -7,7 +7,7 @@ echo "Starting Docker deployment user data script at $(date)"
 
 # Update and install packages
 yum update -y
-yum install -y docker git curl wget unzip jq awscli mysql postgresql15
+yum install -y docker git curl wget unzip jq awscli mysql postgresql15-server postgresql15-devel postgresql15
 
 # Install Docker Compose
 curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -43,6 +43,10 @@ POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id "${postgres_se
 MYSQL_PASSWORD=$(echo $MYSQL_SECRET | jq -r '.password')
 POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')
 
+# Extract hostnames without ports
+MYSQL_HOST=$(echo "${mysql_endpoint}" | cut -d: -f1)
+POSTGRES_HOST=$(echo "${postgres_endpoint}" | cut -d: -f1)
+
 # Update docker-compose.yml with RDS endpoints and credentials
 cat > docker-compose.production.yml << EOF
 services:
@@ -57,14 +61,16 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      # CORS Configuration
+      CORS_ORIGIN: "*"
       # MySQL RDS Configuration
-      MYSQL_HOST: ${mysql_endpoint}
+      MYSQL_HOST: $MYSQL_HOST
       MYSQL_PORT: 3306
       MYSQL_USER: notes_user
       MYSQL_PASSWORD: $MYSQL_PASSWORD
       MYSQL_DATABASE: notes_db
       # PostgreSQL RDS Configuration  
-      POSTGRES_HOST: ${postgres_endpoint}
+      POSTGRES_HOST: $POSTGRES_HOST
       POSTGRES_PORT: 5432
       POSTGRES_USER: notes_user
       POSTGRES_PASSWORD: $POSTGRES_PASSWORD
@@ -149,10 +155,11 @@ for i in {1..10}; do
     echo "Checking database connectivity (attempt $i)..."
     
     # Test MySQL connection
-    if mysql -h "${mysql_endpoint}" -u notes_user -p"$MYSQL_PASSWORD" -e "SELECT 1;" > /dev/null 2>&1; then
+    echo "Testing MySQL connection to $MYSQL_HOST:3306..."
+    if mysql -h "$MYSQL_HOST" -P 3306 -u notes_user -p"$MYSQL_PASSWORD" -e "SELECT 1;" > /dev/null 2>&1; then
         echo "MySQL connection successful"
         # Initialize MySQL schema
-        mysql -h "${mysql_endpoint}" -u notes_user -p"$MYSQL_PASSWORD" < /opt/app/app/database/mysql/init.sql
+        mysql -h "$MYSQL_HOST" -P 3306 -u notes_user -p"$MYSQL_PASSWORD" notes_db < /opt/app/app/database/mysql/init.sql
         break
     else
         echo "MySQL connection failed, retrying in 30 seconds..."
@@ -163,11 +170,12 @@ done
 for i in {1..10}; do
     echo "Checking PostgreSQL connectivity (attempt $i)..."
     
-    # Test PostgreSQL connection  
-    if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${postgres_endpoint}" -U notes_user -d notes_db -c "SELECT 1;" > /dev/null 2>&1; then
+    # Test PostgreSQL connection
+    echo "Testing PostgreSQL connection to $POSTGRES_HOST:5432..."
+    if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -p 5432 -U notes_user -d notes_db -c "SELECT 1;" > /dev/null 2>&1; then
         echo "PostgreSQL connection successful"
         # Initialize PostgreSQL schema
-        PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${postgres_endpoint}" -U notes_user -d notes_db -f /opt/app/app/database/postgres/init.sql
+        PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -p 5432 -U notes_user -d notes_db -f /opt/app/app/database/postgres/init.sql
         break
     else
         echo "PostgreSQL connection failed, retrying in 30 seconds..."

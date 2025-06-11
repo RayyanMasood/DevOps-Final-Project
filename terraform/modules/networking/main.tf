@@ -168,6 +168,15 @@ resource "aws_route_table" "private" {
 resource "aws_route_table" "database" {
   vpc_id = aws_vpc.main.id
 
+  # Add route to NAT Gateway for internet access (DNS resolution, etc.)
+  dynamic "route" {
+    for_each = var.enable_nat_gateway ? [1] : []
+    content {
+      cidr_block     = "0.0.0.0/0"
+      nat_gateway_id = aws_nat_gateway.main[0].id
+    }
+  }
+
   tags = merge(var.tags, {
     Name = "${local.name_prefix}-database-rt"
     Type = "Database Route Table"

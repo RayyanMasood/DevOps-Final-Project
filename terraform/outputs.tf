@@ -261,28 +261,28 @@ output "key_name" {
 }
 
 # ========================================
-# Bastion Host Information (TEMPORARILY DISABLED)
+# Bastion Host Information
 # ========================================
 
-# output "bastion_public_ip" {
-#   description = "Public IP address of the bastion host for SSH tunneling"
-#   value       = module.compute.bastion_public_ip
-# }
+output "bastion_public_ip" {
+  description = "Public IP address of the bastion host for SSH tunneling"
+  value       = module.compute.bastion_public_ip
+}
 
-# output "bastion_ssh_command" {
-#   description = "SSH command to connect to bastion host"
-#   value       = "ssh -i your-key.pem ec2-user@${module.compute.bastion_public_ip}"
-# }
+output "bastion_ssh_command" {
+  description = "SSH command to connect to bastion host"
+  value       = "ssh -i ~/.ssh/DevOps-FP-KeyPair.pem ec2-user@${module.compute.bastion_public_ip}"
+}
 
-# output "mysql_ssh_tunnel_command" {
-#   description = "SSH tunnel command for MySQL database access"
-#   value       = "ssh -i your-key.pem -L 3306:${module.database.mysql_endpoint}:3306 ec2-user@${module.compute.bastion_public_ip}"
-# }
+output "mysql_ssh_tunnel_command" {
+  description = "SSH tunnel command for MySQL database access"
+  value       = "ssh -i ~/.ssh/DevOps-FP-KeyPair.pem -L 3306:${module.database.mysql_endpoint} ec2-user@${module.compute.bastion_public_ip}"
+}
 
-# output "postgres_ssh_tunnel_command" {
-#   description = "SSH tunnel command for PostgreSQL database access"
-#   value       = "ssh -i your-key.pem -L 5432:${module.database.postgres_endpoint}:5432 ec2-user@${module.compute.bastion_public_ip}"
-# }
+output "postgres_ssh_tunnel_command" {
+  description = "SSH tunnel command for PostgreSQL database access" 
+  value       = "ssh -i ~/.ssh/DevOps-FP-KeyPair.pem -L 5432:${module.database.postgres_endpoint} ec2-user@${module.compute.bastion_public_ip}"
+}
 
 # ========================================
 # Metabase BI Tool Information (TEMPORARILY DISABLED)

@@ -101,3 +101,30 @@ output "launch_template_configuration" {
     key_name     = aws_launch_template.app.key_name
   }
 }
+
+# Bastion Host Outputs
+output "bastion_public_ip" {
+  description = "Public IP address of the bastion host"
+  value       = aws_instance.bastion.public_ip
+}
+
+output "bastion_instance_id" {
+  description = "Instance ID of the bastion host"
+  value       = aws_instance.bastion.id
+}
+
+output "bastion_private_ip" {
+  description = "Private IP address of the bastion host"
+  value       = aws_instance.bastion.private_ip
+}
+
+# Metabase Instance Outputs  
+output "metabase_instance_id" {
+  description = "Instance ID of the Metabase server"
+  value       = aws_instance.metabase.id
+}
+
+output "metabase_private_ip" {
+  description = "Private IP address of the Metabase server"
+  value       = aws_instance.metabase.private_ip
+}
