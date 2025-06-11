@@ -205,16 +205,17 @@ resource "aws_db_parameter_group" "postgres" {
   parameter {
     name  = "shared_preload_libraries"
     value = "pg_stat_statements"
+    apply_method = "pending-reboot"
   }
 
   parameter {
     name  = "log_statement"
-    value = "all"
+    value = "none"
   }
 
   parameter {
     name  = "log_min_duration_statement"
-    value = "1000"
+    value = "5000"
   }
 
   tags = merge(var.tags, {

@@ -262,7 +262,7 @@ resource "aws_cloudwatch_metric_alarm" "high_response_time" {
 
 # CloudWatch Log Groups
 resource "aws_cloudwatch_log_group" "ec2_messages" {
-  name              = "/aws/ec2/var/log/messages"
+  name              = "/aws/ec2/${local.name_prefix}/var/log/messages"
   retention_in_days = 14
 
   tags = merge(var.tags, {
@@ -272,7 +272,7 @@ resource "aws_cloudwatch_log_group" "ec2_messages" {
 }
 
 resource "aws_cloudwatch_log_group" "ec2_user_data" {
-  name              = "/aws/ec2/user-data"
+  name              = "/aws/ec2/${local.name_prefix}/user-data"
   retention_in_days = 7
 
   tags = merge(var.tags, {
@@ -282,7 +282,7 @@ resource "aws_cloudwatch_log_group" "ec2_user_data" {
 }
 
 resource "aws_cloudwatch_log_group" "application" {
-  name              = "/aws/ec2/application"
+  name              = "/aws/ec2/${local.name_prefix}/application"
   retention_in_days = 30
 
   tags = merge(var.tags, {
