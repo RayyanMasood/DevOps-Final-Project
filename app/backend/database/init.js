@@ -28,7 +28,9 @@ const postgresConfig = {
   connectionTimeoutMillis: 60000,
   statement_timeout: 60000,
   query_timeout: 60000,
-  ssl: false,
+  ssl: {
+    rejectUnauthorized: false
+  },
 };
 
 async function initializeMysql() {
