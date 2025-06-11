@@ -34,6 +34,15 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
+# Dynamic IP detection for automatic SSH access
+data "http" "current_ip" {
+  url = "https://ipv4.icanhazip.com"
+  
+  request_headers = {
+    Accept = "text/plain"
+  }
+}
+
 # Networking Module
 module "networking" {
   source = "./modules/networking"
@@ -65,7 +74,7 @@ module "security" {
   project_name        = var.project_name
   environment         = var.environment
   allowed_cidr_blocks = var.allowed_cidr_blocks
-  office_ip_addresses = var.office_ip_addresses
+  office_ip_addresses = local.all_office_ips
   
   # Tags
   tags = local.common_tags

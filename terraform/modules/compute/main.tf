@@ -336,11 +336,119 @@ resource "aws_instance" "metabase" {
   
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
-  user_data = base64encode(templatefile("${path.module}/metabase_user_data.sh", {
-    postgres_endpoint = var.postgres_endpoint
-    postgres_secret_arn = var.postgres_secret_arn
-    aws_region       = data.aws_region.current.name
-  }))
+  user_data = base64encode(<<-EOF
+#!/bin/bash
+# Enhanced Metabase setup with proper Docker Compose installation
+yum update -y
+yum install -y docker git htop vim curl wget unzip jq awscli at postgresql15
+
+# Start and enable Docker
+systemctl start docker
+systemctl enable docker
+systemctl start atd
+systemctl enable atd
+
+# Add ec2-user to docker group
+usermod -a -G docker ec2-user
+
+# Install Docker Compose
+curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+# Create Metabase directory
+mkdir -p /opt/metabase
+chown ec2-user:ec2-user /opt/metabase
+
+# Get DB credentials and extract values
+DB_SECRET=$(aws secretsmanager get-secret-value --secret-id ${var.postgres_secret_arn} --region ${data.aws_region.current.name} --query SecretString --output text)
+DB_HOST_RAW=$(echo $DB_SECRET | jq -r .endpoint)
+# Remove port number from hostname if present
+DB_HOST=$(echo $DB_HOST_RAW | sed 's/:.*$//')
+DB_USER=$(echo $DB_SECRET | jq -r .username)
+DB_PASS=$(echo $DB_SECRET | jq -r .password)
+DB_NAME=$(echo $DB_SECRET | jq -r .dbname)
+
+# Create environment file with correct hostname
+cat > /opt/metabase/.env << ENVEOF
+MB_DB_TYPE=postgres
+MB_DB_DBNAME=$DB_NAME
+MB_DB_PORT=5432
+MB_DB_USER=$DB_USER
+MB_DB_PASS=$DB_PASS
+MB_DB_HOST=$DB_HOST
+MB_JETTY_HOST=0.0.0.0
+MB_JETTY_PORT=3000
+ENVEOF
+
+# Create docker-compose configuration
+cat > /opt/metabase/docker-compose.yml << COMPOSEEOF
+version: '3.8'
+services:
+  metabase:
+    image: metabase/metabase:v0.47.7
+    container_name: metabase
+    volumes:
+      - metabase-data:/metabase-data
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+volumes:
+  metabase-data:
+    driver: local
+COMPOSEEOF
+
+# Set proper ownership
+chown ec2-user:ec2-user /opt/metabase/.env /opt/metabase/docker-compose.yml
+
+# Create systemd service for Metabase
+cat > /etc/systemd/system/metabase.service << SERVICEEOF
+[Unit]
+Description=Metabase BI Tool
+Requires=docker.service
+After=docker.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+WorkingDirectory=/opt/metabase
+ExecStart=/usr/local/bin/docker-compose up -d
+ExecStop=/usr/local/bin/docker-compose down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+SERVICEEOF
+
+# Enable and start Metabase service
+systemctl daemon-reload
+systemctl enable metabase.service
+
+# Start Metabase with retry logic
+cd /opt/metabase
+for i in {1..3}; do
+  echo "Starting Metabase attempt $i..."
+  /usr/local/bin/docker-compose up -d && break
+  sleep 10
+done
+
+# Verify Metabase is running
+sleep 30
+if docker ps | grep -q metabase; then
+  echo "✅ Metabase setup completed successfully"
+  systemctl start metabase.service
+else
+  echo "❌ Metabase setup failed"
+  exit 1
+fi
+
+echo "Metabase setup completed"
+EOF
+  )
 
   root_block_device {
     volume_size           = 30

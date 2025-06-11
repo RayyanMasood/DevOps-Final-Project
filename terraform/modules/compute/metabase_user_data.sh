@@ -11,20 +11,15 @@ echo "Starting Metabase instance configuration at $(date)"
 yum update -y
 
 # Install required packages
-yum install -y \
-    docker \
-    git \
-    htop \
-    vim \
-    curl \
-    wget \
-    unzip \
-    jq \
-    awscli
+yum install -y docker git htop vim curl wget unzip jq awscli at postgresql15
 
 # Start and enable Docker
 systemctl start docker
 systemctl enable docker
+
+# Start and enable at daemon
+systemctl start atd
+systemctl enable atd
 
 # Add ec2-user to docker group
 usermod -a -G docker ec2-user
@@ -41,43 +36,32 @@ DB_PASS=$(echo $DB_SECRET | jq -r .password)
 DB_NAME=$(echo $DB_SECRET | jq -r .dbname)
 
 # Create environment file for Metabase
-cat > /opt/metabase/.env << EOF
-# Metabase Configuration
+cat > /opt/metabase/.env << ENV_EOF
 MB_DB_TYPE=postgres
 MB_DB_DBNAME=$DB_NAME
 MB_DB_PORT=5432
 MB_DB_USER=$DB_USER
 MB_DB_PASS=$DB_PASS
 MB_DB_HOST=$DB_HOST
-
-# Application Configuration
 MB_SITE_NAME=DevOps Analytics Dashboard
-MB_SITE_URL=http://$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4):3000
 MB_ADMIN_EMAIL=admin@devops-project.com
-
-# Performance Settings
 JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC
 MB_JETTY_HOST=0.0.0.0
 MB_JETTY_PORT=3000
-
-# Security Settings
 MB_PASSWORD_COMPLEXITY=strong
 MB_PASSWORD_LENGTH=12
 MB_ENABLE_PUBLIC_SHARING=false
 MB_ENABLE_EMBEDDING=true
 MB_SESSION_TIMEOUT=720
-
-# Analytics & Tracking
 MB_ANON_TRACKING_ENABLED=false
 MB_CHECK_FOR_UPDATES=false
-EOF
+ENV_EOF
 
 chown ec2-user:ec2-user /opt/metabase/.env
 
-# Create Metabase Docker Compose file
-cat > /opt/metabase/docker-compose.yml << 'EOF'
+# Create Docker Compose file
+cat > /opt/metabase/docker-compose.yml << COMPOSE_EOF
 version: '3.8'
-
 services:
   metabase:
     image: metabase/metabase:v0.47.7
@@ -85,8 +69,6 @@ services:
     hostname: metabase
     volumes:
       - metabase-data:/metabase-data
-      - ./config:/config
-      - ./logs:/logs
     env_file:
       - .env
     ports:
@@ -98,27 +80,26 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
 volumes:
   metabase-data:
     driver: local
-EOF
+COMPOSE_EOF
 
 chown ec2-user:ec2-user /opt/metabase/docker-compose.yml
 
-# Create Metabase startup script
-cat > /opt/metabase/start-metabase.sh << 'EOF'
+# Create startup script
+cat > /opt/metabase/start-metabase.sh << START_EOF
 #!/bin/bash
 cd /opt/metabase
 docker-compose up -d
-echo "Metabase starting... Access at http://$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4):3000"
-EOF
+echo "Metabase starting..."
+START_EOF
 
 chmod +x /opt/metabase/start-metabase.sh
 chown ec2-user:ec2-user /opt/metabase/start-metabase.sh
 
-# Create systemd service for Metabase
-cat > /etc/systemd/system/metabase.service << 'EOF'
+# Create systemd service
+cat > /etc/systemd/system/metabase.service << SERVICE_EOF
 [Unit]
 Description=Metabase BI Tool
 Requires=docker.service
@@ -136,20 +117,57 @@ TimeoutStartSec=0
 
 [Install]
 WantedBy=multi-user.target
-EOF
+SERVICE_EOF
 
-# Enable and start Metabase service
+# Enable and start service
 systemctl daemon-reload
 systemctl enable metabase.service
-
-# Wait for docker to be ready then start Metabase
 sleep 30
 systemctl start metabase.service
 
-# Create sample data initialization script
-cat > /opt/metabase/init-sample-data.sql << 'EOF'
--- Sample data for Metabase dashboards
-CREATE TABLE IF NOT EXISTS sales_data (
+# Create live data script
+cat > /opt/metabase/add-live-data.sh << LIVE_EOF
+#!/bin/bash
+source /opt/metabase/.env
+
+add_sales_data() {
+    local products=("Product A" "Product B" "Product C" "Product D" "Product E")
+    local categories=("Electronics" "Clothing" "Books" "Home" "Sports")
+    local regions=("North" "South" "East" "West" "Central")
+    
+    local product=\${products[\$RANDOM % \${#products[@]}]}
+    local category=\${categories[\$RANDOM % \${#categories[@]}]}
+    local region=\${regions[\$RANDOM % \${#regions[@]}]}
+    local amount=\$((\$RANDOM % 3000 + 100))
+    local quantity=\$((\$RANDOM % 20 + 1))
+    
+    PGPASSWORD=\$MB_DB_PASS psql -h \$MB_DB_HOST -U \$MB_DB_USER -d \$MB_DB_DBNAME -c "INSERT INTO sales_data (date, product_name, category, sales_amount, quantity_sold, region) VALUES (CURRENT_DATE, '\$product', '\$category', \$amount.00, \$quantity, '\$region');"
+    
+    echo "Added: \$product, \$category, \$\${\$amount}, \$quantity units, \$region"
+}
+
+case "\$1" in
+    "sales")
+        add_sales_data
+        ;;
+    *)
+        echo "Usage: \$0 {sales}"
+        ;;
+esac
+LIVE_EOF
+
+chmod +x /opt/metabase/add-live-data.sh
+chown ec2-user:ec2-user /opt/metabase/add-live-data.sh
+
+# Create sample data script
+cat > /opt/metabase/init-sample-data.sh << SAMPLE_EOF
+#!/bin/bash
+source /opt/metabase/.env
+sleep 60
+
+PGPASSWORD=\$MB_DB_PASS psql -h \$MB_DB_HOST -U \$MB_DB_USER -d \$MB_DB_DBNAME << 'SQL_EOF'
+DROP TABLE IF EXISTS sales_data CASCADE;
+CREATE TABLE sales_data (
     id SERIAL PRIMARY KEY,
     date DATE NOT NULL,
     product_name VARCHAR(100) NOT NULL,
@@ -160,21 +178,15 @@ CREATE TABLE IF NOT EXISTS sales_data (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert sample sales data
 INSERT INTO sales_data (date, product_name, category, sales_amount, quantity_sold, region) VALUES
 ('2024-01-01', 'Product A', 'Electronics', 1500.00, 5, 'North'),
 ('2024-01-02', 'Product B', 'Electronics', 2500.00, 10, 'South'),
 ('2024-01-03', 'Product C', 'Clothing', 800.00, 8, 'East'),
 ('2024-01-04', 'Product D', 'Books', 300.00, 15, 'West'),
-('2024-01-05', 'Product A', 'Electronics', 1200.00, 4, 'North'),
-('2024-01-06', 'Product E', 'Home', 950.00, 3, 'South'),
-('2024-01-07', 'Product F', 'Electronics', 1800.00, 6, 'East'),
-('2024-01-08', 'Product G', 'Clothing', 600.00, 12, 'West'),
-('2024-01-09', 'Product H', 'Books', 450.00, 18, 'North'),
-('2024-01-10', 'Product I', 'Home', 1100.00, 4, 'South');
+('2024-01-05', 'Product E', 'Home', 950.00, 3, 'Central');
 
--- Create users table for dashboard demo
-CREATE TABLE IF NOT EXISTS user_activity (
+DROP TABLE IF EXISTS user_activity CASCADE;
+CREATE TABLE user_activity (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     activity_type VARCHAR(50) NOT NULL,
@@ -183,24 +195,29 @@ CREATE TABLE IF NOT EXISTS user_activity (
     user_agent TEXT
 );
 
--- Insert sample user activity data
 INSERT INTO user_activity (user_id, activity_type, ip_address, user_agent) VALUES
-(1, 'login', '192.168.1.100', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-(2, 'login', '192.168.1.101', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'),
-(3, 'page_view', '192.168.1.102', 'Mozilla/5.0 (X11; Linux x86_64)'),
-(1, 'purchase', '192.168.1.100', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-(4, 'login', '192.168.1.103', 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1)'),
-(2, 'logout', '192.168.1.101', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'),
-(5, 'signup', '192.168.1.104', 'Mozilla/5.0 (Android 11; Mobile)'),
-(3, 'purchase', '192.168.1.102', 'Mozilla/5.0 (X11; Linux x86_64)'),
-(6, 'login', '192.168.1.105', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-(4, 'page_view', '192.168.1.103', 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1)');
-EOF
+(1, 'login', '192.168.1.100', 'Mozilla/5.0 (Windows)'),
+(2, 'login', '192.168.1.101', 'Mozilla/5.0 (Mac)'),
+(3, 'page_view', '192.168.1.102', 'Mozilla/5.0 (Linux)'),
+(1, 'purchase', '192.168.1.100', 'Mozilla/5.0 (Windows)'),
+(4, 'login', '192.168.1.103', 'Mozilla/5.0 (iPhone)');
+SQL_EOF
 
-# Add alias for easy access
+echo "Sample data initialized successfully!"
+SAMPLE_EOF
+
+chmod +x /opt/metabase/init-sample-data.sh
+chown ec2-user:ec2-user /opt/metabase/init-sample-data.sh
+
+# Add aliases
+echo "alias add-sales='cd /opt/metabase && ./add-live-data.sh sales'" >> /home/ec2-user/.bashrc
+echo "alias init-sample-data='cd /opt/metabase && ./init-sample-data.sh'" >> /home/ec2-user/.bashrc
 echo "alias metabase-logs='docker logs metabase'" >> /home/ec2-user/.bashrc
-echo "alias metabase-restart='cd /opt/metabase && docker-compose restart'" >> /home/ec2-user/.bashrc
 echo "alias metabase-status='cd /opt/metabase && docker-compose ps'" >> /home/ec2-user/.bashrc
 
+# Schedule data initialization
+echo "/opt/metabase/init-sample-data.sh" | at now + 3 minutes
+
 echo "Metabase instance configuration completed at $(date)"
-echo "Metabase will be available at http://$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4):3000" 
+echo "Metabase will be available on port 3000"
+echo "Sample data will be initialized in 3 minutes" 

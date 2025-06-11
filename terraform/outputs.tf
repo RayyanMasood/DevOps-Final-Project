@@ -201,8 +201,8 @@ output "app_url" {
 }
 
 output "bi_url" {
-  description = "BI tool (Metabase) URL"
-  value = var.domain_name != "" ? "https://bi.${var.domain_name}" : "Not configured"
+  description = "BI tool (Metabase) access information"
+  value = var.domain_name != "" ? "https://bi.${var.domain_name}" : "Use SSH tunnel: ssh -i ~/.ssh/DevOps-FP-KeyPair.pem -L 3000:${module.compute.metabase_private_ip}:3000 ec2-user@${module.compute.bastion_public_ip}, then access http://localhost:3000"
 }
 
 output "api_url" {
@@ -285,23 +285,23 @@ output "postgres_ssh_tunnel_command" {
 }
 
 # ========================================
-# Metabase BI Tool Information (TEMPORARILY DISABLED)
+# Metabase BI Tool Information
 # ========================================
 
-# output "metabase_instance_id" {
-#   description = "Instance ID of the dedicated Metabase server"
-#   value       = module.compute.metabase_instance_id
-# }
+output "metabase_instance_id" {
+  description = "Instance ID of the dedicated Metabase server"
+  value       = module.compute.metabase_instance_id
+}
 
-# output "metabase_private_ip" {
-#   description = "Private IP address of the Metabase instance"
-#   value       = module.compute.metabase_private_ip
-# }
+output "metabase_private_ip" {
+  description = "Private IP address of the Metabase instance"
+  value       = module.compute.metabase_private_ip
+}
 
-# output "metabase_access_via_bastion" {
-#   description = "SSH tunnel command to access Metabase via bastion host"
-#   value       = "ssh -i your-key.pem -L 3000:${module.compute.metabase_private_ip}:3000 ec2-user@${module.compute.bastion_public_ip}"
-# }
+output "metabase_access_via_bastion" {
+  description = "SSH tunnel command to access Metabase via bastion host"
+  value       = "ssh -i ~/.ssh/DevOps-FP-KeyPair.pem -L 3000:${module.compute.metabase_private_ip}:3000 ec2-user@${module.compute.bastion_public_ip}"
+}
 
 # ========================================
 # Configuration Summary
@@ -354,4 +354,15 @@ output "estimated_monthly_cost" {
     nat_gateway = var.enable_nat_gateway ? "NAT Gateway charges apply" : "No NAT Gateway"
     data_transfer = "Variable based on traffic"
   }
+}
+
+# Dynamic IP Management Outputs
+output "current_ip_detected" {
+  description = "Your current public IP address (automatically detected)"
+  value       = local.current_ip
+}
+
+output "all_allowed_ips" {
+  description = "All IP addresses allowed for SSH access (static + current)"
+  value       = local.all_office_ips
 }

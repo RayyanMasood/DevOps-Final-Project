@@ -101,6 +101,16 @@ resource "aws_security_group_rule" "app_ingress_ssh_bastion" {
   description              = "Allow SSH access from bastion host"
 }
 
+resource "aws_security_group_rule" "app_ingress_metabase_bastion" {
+  type                     = "ingress"
+  from_port                = 3000
+  to_port                  = 3000
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.bastion.id
+  security_group_id        = aws_security_group.app.id
+  description              = "Allow Metabase access from bastion host for SSH tunneling"
+}
+
 resource "aws_security_group_rule" "app_egress_https" {
   type              = "egress"
   from_port         = 443
@@ -227,6 +237,16 @@ resource "aws_security_group_rule" "bastion_egress_ssh_app" {
   source_security_group_id = aws_security_group.app.id
   security_group_id        = aws_security_group.bastion.id
   description              = "Allow SSH access to application servers"
+}
+
+resource "aws_security_group_rule" "bastion_egress_metabase" {
+  type                     = "egress"
+  from_port                = 3000
+  to_port                  = 3000
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.app.id
+  security_group_id        = aws_security_group.bastion.id
+  description              = "Allow Metabase access for SSH tunneling"
 }
 
 resource "aws_security_group_rule" "bastion_egress_mysql" {
