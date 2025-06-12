@@ -326,13 +326,14 @@ resource "aws_instance" "bastion" {
   })
 }
 
-# Dedicated Metabase Instance (3rd EC2 for BI Tool)
+# Dedicated Metabase Instance (3rd EC2 for BI Tool) - Now in Public Subnet
 resource "aws_instance" "metabase" {
-  ami                    = var.ami_id
-  instance_type         = var.instance_type
-  key_name              = var.key_name
-  subnet_id             = var.private_subnet_ids[0]
-  vpc_security_group_ids = [var.app_security_group_id]
+  ami                         = var.ami_id
+  instance_type              = var.instance_type
+  key_name                   = var.key_name
+  subnet_id                  = var.public_subnet_ids[1]  # Move to public subnet
+  vpc_security_group_ids     = [var.app_security_group_id]
+  associate_public_ip_address = true  # Enable public IP
   
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
@@ -462,4 +463,11 @@ EOF
     Type = "BI Tool Server"
     Purpose = "Metabase Business Intelligence"
   })
+}
+
+# Target Group Attachment for Metabase
+resource "aws_lb_target_group_attachment" "metabase" {
+  target_group_arn = var.metabase_target_group_arn
+  target_id        = aws_instance.metabase.id
+  port             = 3000
 }

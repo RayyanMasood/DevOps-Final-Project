@@ -152,6 +152,46 @@ resource "aws_lb_target_group" "app" {
   }
 }
 
+# Target Group for Metabase BI Tool
+resource "aws_lb_target_group" "metabase" {
+  name     = "dfp-${var.environment}-metabase-tg"
+  port     = 3000
+  protocol = "HTTP"
+  vpc_id   = var.vpc_id
+
+  # Health check configuration for Metabase
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 10
+    interval            = 30
+    path                = "/api/health"
+    matcher             = "200"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+  }
+
+  # Target group attributes
+  target_type = "instance"
+
+  # Stickiness configuration for BI sessions
+  stickiness {
+    type            = "lb_cookie"
+    cookie_duration = 86400
+    enabled         = true
+  }
+
+  tags = merge(var.tags, {
+    Name = "${local.name_prefix}-metabase-tg"
+    Type = "Metabase Target Group"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 # HTTP Listener (redirects to HTTPS if certificate is provided)
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
@@ -196,6 +236,7 @@ resource "aws_lb_listener" "https" {
   ssl_policy        = var.ssl_policy
   certificate_arn   = var.certificate_arn
 
+  # Default action - forward to main app
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.app.arn
@@ -204,6 +245,29 @@ resource "aws_lb_listener" "https" {
   tags = merge(var.tags, {
     Name = "${local.name_prefix}-https-listener"
     Type = "HTTPS Listener"
+  })
+}
+
+# Listener Rule for BI Dashboard (bi.domain.com -> Metabase)
+resource "aws_lb_listener_rule" "metabase" {
+  count        = var.certificate_arn != "" && var.domain_name != "" ? 1 : 0
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.metabase.arn
+  }
+
+  condition {
+    host_header {
+      values = ["bi.${var.domain_name}"]
+    }
+  }
+
+  tags = merge(var.tags, {
+    Name = "${local.name_prefix}-metabase-rule"
+    Type = "Listener Rule"
   })
 }
 

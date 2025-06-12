@@ -45,6 +45,27 @@ output "target_group_name" {
   value       = aws_lb_target_group.app.name
 }
 
+# Metabase Target Group Outputs
+output "metabase_target_group_id" {
+  description = "ID of the Metabase target group"
+  value       = aws_lb_target_group.metabase.id
+}
+
+output "metabase_target_group_arn" {
+  description = "ARN of the Metabase target group"
+  value       = aws_lb_target_group.metabase.arn
+}
+
+output "metabase_target_group_arn_suffix" {
+  description = "ARN suffix of the Metabase target group"
+  value       = aws_lb_target_group.metabase.arn_suffix
+}
+
+output "metabase_target_group_name" {
+  description = "Name of the Metabase target group"
+  value       = aws_lb_target_group.metabase.name
+}
+
 # Listener Outputs
 output "http_listener_arn" {
   description = "ARN of the HTTP listener"

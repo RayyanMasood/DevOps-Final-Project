@@ -58,6 +58,16 @@ resource "aws_security_group_rule" "alb_egress_app_8080" {
   description              = "Allow traffic to application servers on port 8080"
 }
 
+resource "aws_security_group_rule" "alb_egress_metabase_3000" {
+  type                     = "egress"
+  from_port                = 3000
+  to_port                  = 3000
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.app.id
+  security_group_id        = aws_security_group.alb.id
+  description              = "Allow traffic to Metabase on port 3000"
+}
+
 # Application Security Group (EC2 instances)
 resource "aws_security_group" "app" {
   name_prefix = "${local.name_prefix}-app-"
@@ -109,6 +119,16 @@ resource "aws_security_group_rule" "app_ingress_metabase_bastion" {
   source_security_group_id = aws_security_group.bastion.id
   security_group_id        = aws_security_group.app.id
   description              = "Allow Metabase access from bastion host for SSH tunneling"
+}
+
+resource "aws_security_group_rule" "app_ingress_metabase_alb" {
+  type                     = "ingress"
+  from_port                = 3000
+  to_port                  = 3000
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.alb.id
+  security_group_id        = aws_security_group.app.id
+  description              = "Allow Metabase access from ALB on port 3000"
 }
 
 resource "aws_security_group_rule" "app_egress_https" {

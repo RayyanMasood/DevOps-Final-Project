@@ -40,6 +40,11 @@ variable "target_group_arns" {
   type        = list(string)
 }
 
+variable "metabase_target_group_arn" {
+  description = "Target group ARN for Metabase instance"
+  type        = string
+}
+
 # Instance Configuration
 variable "instance_type" {
   description = "EC2 instance type"

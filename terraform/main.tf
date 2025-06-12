@@ -135,6 +135,7 @@ module "compute" {
   app_security_group_id     = module.security.app_security_group_id
   bastion_security_group_id = module.security.bastion_security_group_id
   target_group_arns         = [module.load_balancer.target_group_arn]
+  metabase_target_group_arn = module.load_balancer.metabase_target_group_arn
   
   # Configuration
   project_name              = var.project_name
