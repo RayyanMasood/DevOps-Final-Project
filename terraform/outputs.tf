@@ -187,12 +187,19 @@ output "domain_name" {
 
 output "hosted_zone_id" {
   description = "Route53 hosted zone ID"
-  value       = "Domain module temporarily disabled"
+  value       = var.domain_name != "" ? local.hosted_zone_id : "Domain not configured"
 }
 
 output "ssl_certificate_arn" {
   description = "ARN of the SSL certificate"
-  value       = "Domain module temporarily disabled"
+  value       = var.domain_name != "" ? aws_acm_certificate_validation.main[0].certificate_arn : "Domain not configured"
+}
+
+output "route53_nameservers" {
+  description = "Route53 nameservers for domain configuration"
+  value = var.domain_name != "" ? (
+    var.create_hosted_zone ? aws_route53_zone.main[0].name_servers : ["Using existing hosted zone"]
+  ) : ["Domain not configured"]
 }
 
 output "app_url" {

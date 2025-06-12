@@ -169,6 +169,30 @@ module "compute" {
   depends_on = [module.networking, module.security, module.database]
 }
 
+# SSL Certificate (created independently to avoid circular dependency)
+resource "aws_acm_certificate" "main" {
+  count             = var.domain_name != "" ? 1 : 0
+  domain_name       = var.domain_name
+  validation_method = "DNS"
+
+  subject_alternative_names = [
+    "*.${var.domain_name}",
+    "app.${var.domain_name}",
+    "bi.${var.domain_name}",
+    "api.${var.domain_name}",
+    "admin.${var.domain_name}"
+  ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-ssl-certificate"
+    Type = "SSL"
+  })
+}
+
 # Load Balancer Module
 module "load_balancer" {
   source = "./modules/load_balancer"
@@ -182,9 +206,9 @@ module "load_balancer" {
   project_name              = var.project_name
   environment               = var.environment
   
-  # SSL Certificate (pass through from variables only)
+  # SSL Certificate (use validated certificate if domain is configured)
   domain_name               = var.domain_name
-  certificate_arn           = var.certificate_arn
+  certificate_arn           = var.domain_name != "" ? aws_acm_certificate_validation.main[0].certificate_arn : var.certificate_arn
   ssl_policy                = var.ssl_policy
   
   # Health check configuration
@@ -203,42 +227,130 @@ module "load_balancer" {
   depends_on = [module.networking, module.security]
 }
 
-# Domain and SSL Module (Optional - only if domain is provided)
-# TEMPORARILY COMMENTED OUT to resolve circular dependency
-# Uncomment and configure after load balancer is working
-# module "domain" {
-#   count  = var.domain_name != "" ? 1 : 0
-#   source = "./modules/domain"
-#
-#   project_name        = var.project_name
-#   environment         = var.environment
-#   aws_region          = var.aws_region
-#   domain_name         = var.domain_name
-#   create_hosted_zone  = var.create_hosted_zone
-#
-#   # ALB configuration for DNS records
-#   alb_dns_name = module.load_balancer.load_balancer_dns_name
-#   alb_zone_id  = module.load_balancer.load_balancer_zone_id
-#
-#   # Health check and monitoring
-#   enable_health_checks = var.enable_health_checks
-#   enable_dns_logging   = var.enable_dns_logging
-#   sns_alarm_arn        = var.enable_monitoring ? module.monitoring[0].sns_topic_arn : ""
-#
-#   # SSL configuration
-#   create_metabase_certificate = var.create_metabase_certificate
-#   ssl_policy                  = var.ssl_policy
-#
-#   # Email configuration
-#   mx_records              = var.mx_records
-#   enable_spf_record       = var.enable_spf_record
-#   enable_dmarc_record     = var.enable_dmarc_record
-#   domain_verification_txt = var.domain_verification_txt
-#
-#   common_tags = local.common_tags
-#
-#   depends_on = [module.load_balancer]
-# }
+# Route53 DNS records (separate from domain module to avoid circular dependency)
+data "aws_route53_zone" "main" {
+  count        = var.domain_name != "" && !var.create_hosted_zone ? 1 : 0
+  name         = var.domain_name
+  private_zone = false
+}
+
+resource "aws_route53_zone" "main" {
+  count = var.domain_name != "" && var.create_hosted_zone ? 1 : 0
+  name  = var.domain_name
+
+  # Prevent accidental destruction of hosted zone (preserves nameservers)
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-hosted-zone"
+    Type = "DNS"
+  })
+}
+
+# Get the hosted zone ID (either existing or newly created)
+locals {
+  hosted_zone_id = var.domain_name != "" ? (
+    var.create_hosted_zone ? aws_route53_zone.main[0].zone_id : data.aws_route53_zone.main[0].zone_id
+  ) : ""
+}
+
+# DNS validation records for SSL certificate
+resource "aws_route53_record" "ssl_validation" {
+  for_each = var.domain_name != "" ? {
+    for dvo in aws_acm_certificate.main[0].domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  } : {}
+
+  zone_id = local.hosted_zone_id
+  name    = each.value.name
+  type    = each.value.type
+  records = [each.value.record]
+  ttl     = 60
+
+  allow_overwrite = true
+}
+
+# Certificate validation
+resource "aws_acm_certificate_validation" "main" {
+  count           = var.domain_name != "" ? 1 : 0
+  certificate_arn = aws_acm_certificate.main[0].arn
+  validation_record_fqdns = [for record in aws_route53_record.ssl_validation : record.fqdn]
+
+  timeouts {
+    create = "5m"
+  }
+}
+
+# DNS A records pointing to ALB
+resource "aws_route53_record" "app" {
+  count   = var.domain_name != "" ? 1 : 0
+  zone_id = local.hosted_zone_id
+  name    = "app.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = module.load_balancer.load_balancer_dns_name
+    zone_id                = module.load_balancer.load_balancer_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "bi" {
+  count   = var.domain_name != "" ? 1 : 0
+  zone_id = local.hosted_zone_id
+  name    = "bi.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = module.load_balancer.load_balancer_dns_name
+    zone_id                = module.load_balancer.load_balancer_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "api" {
+  count   = var.domain_name != "" ? 1 : 0
+  zone_id = local.hosted_zone_id
+  name    = "api.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = module.load_balancer.load_balancer_dns_name
+    zone_id                = module.load_balancer.load_balancer_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "admin" {
+  count   = var.domain_name != "" ? 1 : 0
+  zone_id = local.hosted_zone_id
+  name    = "admin.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = module.load_balancer.load_balancer_dns_name
+    zone_id                = module.load_balancer.load_balancer_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "root" {
+  count   = var.domain_name != "" ? 1 : 0
+  zone_id = local.hosted_zone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = module.load_balancer.load_balancer_dns_name
+    zone_id                = module.load_balancer.load_balancer_zone_id
+    evaluate_target_health = true
+  }
+}
 
 # Monitoring Module (Optional)
 module "monitoring" {
